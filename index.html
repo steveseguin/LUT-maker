@@ -21,13 +21,15 @@
 	<meta property="og:description" content="Create professional color lookup tables (LUTs) for OBS, streaming, and video editing. Works with SpyderCHECKR and other color cards. 100% free, no signup required.">
 	<meta property="og:type" content="website">
 	<meta property="og:url" content="https://steveseguin.github.io/LUT-maker/">
-	<meta property="og:image" content="https://steveseguin.github.io/LUT-maker/lut-preview.png">
+	<meta property="og:image" content="https://steveseguin.github.io/LUT-maker/output.png">
+	<meta property="og:image:alt" content="Color chart before and after LUT correction">
 
 	<!-- Twitter Card -->
 	<meta name="twitter:card" content="summary_large_image">
 	<meta name="twitter:title" content="Free Online LUT Maker - Create Color Lookup Tables">
 	<meta name="twitter:description" content="Create professional color LUTs for streaming and video editing. Works with color reference cards. 100% free tool.">
-	<meta name="twitter:image" content="https://steveseguin.github.io/LUT-maker/lut-preview.png">
+	<meta name="twitter:image" content="https://steveseguin.github.io/LUT-maker/output.png">
+	<meta name="twitter:image:alt" content="Color chart before and after LUT correction">
 
 	<!-- Additional SEO -->
 	<meta name="robots" content="index, follow">
@@ -65,686 +67,34 @@
 	<!-- Theme Color -->
 	<meta name="theme-color" content="#4a6fa5">
 	
-    <style>
- :root {
-    --primary-color: #4a6fa5;
-    --primary-dark: #3a5a80;
-    --secondary-color: #47b8d6;
-    --dark-color: #333;
-    --light-color: #f4f4f4;
-    --danger-color: #dc3545;
-    --success-color: #28a745;
-    --warning-color: #ffc107;
-    --info-color: #17a2b8;
-    --bg-color: #f8f9fa;
-    --card-bg: #ffffff;
-    --border-radius: 8px;
-    --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    --box-shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.12);
-    --transition: all 0.3s ease;
-}
-
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-body {
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    line-height: 1.6;
-    color: var(--dark-color);
-    background: var(--bg-color);
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
-}
-
-h1, h2, h3 {
-    margin-bottom: 10px;
-    color: var(--primary-color);
-    font-weight: 600;
-}
-
-h1 {
-    font-size: 2.4rem;
-    margin-bottom: 0.8rem;
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    font-weight: 700;
-    letter-spacing: -0.5px;
-}
-
-h2 {
-    font-size: 1.6rem;
-    margin-top: 1rem;
-}
-
-h3 {
-    font-size: 1.3rem;
-    margin-top: 0.8rem;
-}
-
-p {
-    margin-bottom: 1rem;
-    color: #444;
-}
-
-ol {
-	margin-left: 30px;
-}
-button {
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-    color: white;
-    border: none;
-    padding: 12px 20px;
-    border-radius: var(--border-radius);
-    cursor: pointer;
-    margin: 8px 4px;
-    transition: var(--transition);
-    font-weight: 500;
-    font-size: 0.95rem;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    text-transform: capitalize;
-}
-
-button:hover {
-    opacity: 0.9;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-}
-
-button:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-button:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-}
-
-.next-btn {
-    background: linear-gradient(135deg, var(--success-color), #5cb85c);
-    padding: 12px 24px;
-    font-size: 1rem;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-}
-
-.next-btn:hover {
-    background: linear-gradient(135deg, #239a3b, #4cae4c);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(40, 167, 69, 0.3);
-}
-
-.prev-btn {
-    background: #6c757d;
-    padding: 12px 24px;
-    font-size: 1rem;
-}
-
-.prev-btn:hover {
-    background: #5a6268;
-}
-
-input[type="file"] {
-    margin: 15px 0;
-    border: 2px dashed #d0d0d0;
-    padding: 20px;
-    border-radius: var(--border-radius);
-    width: 100%;
-    background: linear-gradient(145deg, #fafafa, #f5f5f5);
-    text-align: center;
-    cursor: pointer;
-    transition: var(--transition);
-    position: relative;
-}
-
-input[type="file"]:hover {
-    border-color: var(--primary-color);
-    background: linear-gradient(145deg, #fff, #fafafa);
-    box-shadow: 0 2px 8px rgba(74, 111, 165, 0.1);
-}
-
-input[type="file"]:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.1);
-}
-
-input[type="number"] {
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-}
-
-input[type="range"] {
-    height: 5px;
-    border-radius: 5px;
-    background: #d7dcdf;
-    outline: none;
-}
-
-input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: var(--primary-color);
-    cursor: pointer;
-    transition: var(--transition);
-}
-
-input[type="range"]::-webkit-slider-thumb:hover {
-    background: var(--secondary-color);
-}
-
-/* Checkbox styling */
-input[type="checkbox"] {
-    width: 20px;
-    height: 20px;
-    margin: 0 10px;
-    cursor: pointer;
-    position: relative;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    border: 2px solid #ddd;
-    border-radius: 4px;
-    background: white;
-    transition: all 0.3s ease;
-    flex-shrink: 0;
-}
-
-input[type="checkbox"]:checked {
-    background: var(--primary-color);
-    border-color: var(--primary-color);
-}
-
-input[type="checkbox"]:checked::after {
-    content: '✓';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: white;
-    font-size: 14px;
-    font-weight: bold;
-}
-
-input[type="checkbox"]:hover {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.1);
-}
-
-input[type="checkbox"]:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.2);
-}
-
-select {
-    padding: 10px 14px;
-    border: 2px solid #e0e0e0;
-    border-radius: 6px;
-    background-color: white;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
-    cursor: pointer;
-    transition: var(--transition);
-    font-size: 0.95rem;
-}
-
-select:hover {
-    border-color: var(--primary-color);
-}
-
-select:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.1);
-}
-
-#lut-preview {
-	max-width: 100%;
-	height: auto;
-}
-
-canvas {
-    border: 2px solid #e0e0e0;
-    margin: 15px 0;
-    max-width: 100%;
-    border-radius: 6px;
-    background-color: #fcfcfc;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    transition: var(--transition);
-}
-
-canvas:hover {
-    border-color: var(--primary-color);
-    box-shadow: 0 4px 12px rgba(74, 111, 165, 0.15);
-}
-
-.container {
-    background: var(--card-bg);
-    padding: 28px;
-    border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
-    margin-bottom: 24px;
-    transition: var(--transition);
-    border: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.container:hover {
-    box-shadow: var(--box-shadow-hover);
-}
-
-.grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
-}
-
-.step {
-    margin-bottom: 28px;
-    padding-bottom: 28px;
-    border-bottom: 2px solid #f0f0f0;
-    position: relative;
-}
-
-.step::after {
-    content: '';
-    position: absolute;
-    bottom: -2px;
-    left: 0;
-    width: 50px;
-    height: 2px;
-    background: linear-gradient(90deg, var(--primary-color), transparent);
-}
-
-.step:last-child {
-    border-bottom: none;
-}
-
-.preview {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background: linear-gradient(145deg, #fafafa, #f5f5f5);
-    padding: 20px;
-    border-radius: var(--border-radius);
-    margin: 20px 0;
-    border: 1px solid #e0e0e0;
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.preview img {
-    max-width: 100%;
-    margin: 10px 0;
-    border-radius: 4px;
-}
-
-.controls {
-    margin: 24px 0;
-    background: linear-gradient(145deg, #fbfbfb, #f7f7f7);
-    padding: 20px;
-    border-radius: var(--border-radius);
-    border: 1px solid #e0e0e0;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-}
-
-.slider-container {
-    display: flex;
-    align-items: center;
-    margin: 16px 0;
-    padding: 8px 0;
-}
-
-.slider-container label {
-    min-width: 200px;
-    font-weight: 500;
-    color: #444;
-    display: flex;
-    align-items: center;
-}
-
-.slider-container small {
-    margin-left: 10px;
-    color: #666;
-    font-size: 0.85rem;
-    line-height: 1.4;
-    flex: 1;
-}
-
-input[type="range"] {
-    flex: 1;
-    margin: 0 12px;
-}
-
-.slider-value {
-    width: 50px;
-    text-align: center;
-    font-weight: 500;
-    color: var(--primary-color);
-}
-
-.color-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    margin: 15px 0;
-}
-
-.color-cell {
-    aspect-ratio: 1;
-    border: 1px solid #ddd;
-    cursor: pointer;
-    border-radius: 4px;
-    transition: transform 0.2s;
-}
-
-.color-cell:hover {
-    transform: scale(1.08);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    border-color: var(--primary-color);
-    z-index: 10;
-    position: relative;
-}
-
-.color-input {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin: 15px 0;
-}
-
-.rgb-input {
-    display: flex;
-    flex-direction: column;
-    background-color: white;
-    padding: 16px;
-    border-radius: var(--border-radius);
-    border: 1px solid #eee;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-}
-
-.rgb-input label {
-    margin-bottom: 8px;
-    font-weight: 500;
-}
-
-.rgb-input input {
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    width: 100%;
-}
-
-.chart-controls {
-    margin: 10px 0;
-    display: flex;
-    gap: 10px;
-}
-
-.tab-container {
-    margin: 24px 0;
-}
-
-.tab-buttons {
-    display: flex;
-    overflow-x: auto;
-    border-bottom: 1px solid #ddd;
-    scrollbar-width: thin;
-    background-color: #f1f1f1;
-    border-radius: var(--border-radius) var(--border-radius) 0 0;
-    padding: 0 2px;
-}
-
-.tab-btn {
-    background: none;
-    border: none;
-    padding: 12px 20px;
-    cursor: pointer;
-    background-color: transparent;
-    color: #666;
-    transition: var(--transition);
-    font-weight: 500;
-    position: relative;
-    box-shadow: none;
-}
-
-.tab-btn:hover {
-    background-color: rgba(74, 111, 165, 0.1);
-    color: var(--primary-color);
-    box-shadow: none;
-}
-
-.tab-btn.active {
-    color: var(--primary-color);
-    font-weight: 600;
-    background-color: white;
-    border-radius: var(--border-radius) var(--border-radius) 0 0;
-    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.tab-btn.active::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background-color: var(--primary-color);
-}
-
-.tab-content {
-    padding: 24px;
-    border: 1px solid #ddd;
-    border-top: none;
-    border-radius: 0 0 var(--border-radius) var(--border-radius);
-    background-color: white;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-}
-
-.tab-panel {
-    display: none;
-    animation: fadeIn 0.3s;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-.tab-panel.active {
-    display: block;
-}
-
-.visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-}
-
-.log-container {
-    background-color: #f8f8f8;
-    border: 1px solid #ddd;
-    border-radius: var(--border-radius);
-    padding: 12px;
-    margin: 15px 0;
-    max-height: 200px;
-    overflow-y: auto;
-    font-family: monospace;
-    font-size: 0.9rem;
-}
-
-.log-entry {
-    margin-bottom: 6px;
-    padding-bottom: 6px;
-    border-bottom: 1px dashed #eee;
-}
-
-.info {
-    color: #0066cc;
-}
-
-.warning {
-    color: #cc9900;
-}
-
-.error {
-    color: #cc0000;
-}
-
-.success {
-    color: #009900;
-}
-
-.progress-container {
-    width: 100%;
-    height: 12px;
-    background-color: #f1f1f1;
-    border-radius: 50px;
-    margin: 15px 0;
-    overflow: hidden;
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.progress-bar {
-    height: 100%;
-    width: 0;
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-    transition: width 0.3s ease;
-    border-radius: 50px;
-}
-
-#selected-color-preview {
-    margin: 10px auto;
-    width: 120px;
-    height: 120px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-#lut-download-container {
-    margin-top: 15px;
-    display: flex;
-    justify-content: center;
-}
-
-#lut-download-container button {
-    min-width: 200px;
-    padding: 14px 24px;
-    font-size: 1rem;
-    margin: 10px 5px;
-}
-
-#process-button {
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-    padding: 14px 28px;
-    font-size: 1.05rem;
-    font-weight: 600;
-    margin-top: 20px;
-    width: 100%;
-    max-width: 300px;
-}
-
-#process-button:hover {
-    background: linear-gradient(135deg, var(--primary-dark), #2a4a70);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(74, 111, 165, 0.3);
-}
-
-/* Loading animation */
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.6; }
-    100% { opacity: 1; }
-}
-
-.loading {
-    animation: pulse 1.5s ease-in-out infinite;
-}
-
-/* Smooth scroll behavior */
-html {
-    scroll-behavior: smooth;
-}
-
-/* Better focus styles */
-*:focus-visible {
-    outline: 2px solid var(--primary-color);
-    outline-offset: 2px;
-}
-
-@media (max-width: 768px) {
-    .grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .slider-container {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    .slider-container label {
-        width: 100%;
-        margin-bottom: 8px;
-    }
-    
-    input[type="range"] {
-        width: 100%;
-        margin: 8px 0;
-    }
-    
-    .tab-buttons {
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        white-space: nowrap;
-    }
-    
-    .tab-btn {
-        padding: 10px 15px;
-        font-size: 0.9rem;
-    }
-}
-    </style>
+    <link rel="stylesheet" href="app.css">
 </head>
 <body>
+    <a class="skip-link" href="#main-workflow">Skip to LUT workflow</a>
     <div class="container">
         <h1>Browser-based LUT Maker</h1>
         <p>Create your own custom LUTs for OBS or other applications using color cards.</p>
 		<div class="info-section" style="margin-top: 10px; font-size: 0.9rem; color: #666; border-top: 1px solid #eee; padding-top: 10px;">
 			<p>Created by Steve Seguin. 
-			   <a href="https://github.com/steveseguin/LUT-maker" target="_blank">View on GitHub</a> | 
-			   <a href="https://www.youtube.com/watch?v=pu9IpbfckDo" target="_blank">Watch Tutorial Video</a>
+			   <a href="https://github.com/steveseguin/LUT-maker" target="_blank" rel="noopener noreferrer">View on GitHub</a> |
+			   <a href="https://www.youtube.com/watch?v=pu9IpbfckDo" target="_blank" rel="noopener noreferrer">Watch Tutorial Video</a>
 			</p>
 		</div>
     </div>
     
-    <div class="tab-container">
-        <div class="tab-buttons">
-            <button class="tab-btn active" data-tab="setup">1. Setup</button>
-            <button class="tab-btn" data-tab="reference" disabled>2. Reference Colors</button>
-            <button class="tab-btn" data-tab="colorcard" disabled>3. Color Card</button>
-            <button class="tab-btn" data-tab="process" disabled>4. Process</button>
-            <button class="tab-btn" data-tab="test" disabled>5. Test & Adjust</button>
-            <button class="tab-btn" data-tab="export" disabled>6. Export LUT</button>
+    <main class="tab-container" id="main-workflow">
+        <div class="tab-buttons" role="tablist" aria-label="LUT creation steps">
+            <button class="tab-btn active" id="setup-tab-button" data-tab="setup" role="tab" aria-controls="setup-tab" aria-selected="true" tabindex="0">1. Setup</button>
+            <button class="tab-btn" id="reference-tab-button" data-tab="reference" role="tab" aria-controls="reference-tab" aria-selected="false" tabindex="-1" disabled>2. Reference Colors</button>
+            <button class="tab-btn" id="colorcard-tab-button" data-tab="colorcard" role="tab" aria-controls="colorcard-tab" aria-selected="false" tabindex="-1" disabled>3. Color Card</button>
+            <button class="tab-btn" id="process-tab-button" data-tab="process" role="tab" aria-controls="process-tab" aria-selected="false" tabindex="-1" disabled>4. Process</button>
+            <button class="tab-btn" id="test-tab-button" data-tab="test" role="tab" aria-controls="test-tab" aria-selected="false" tabindex="-1" disabled>5. Test & Adjust</button>
+            <button class="tab-btn" id="export-tab-button" data-tab="export" role="tab" aria-controls="export-tab" aria-selected="false" tabindex="-1" disabled>6. Export LUT</button>
         </div>
         
         <div class="tab-content">
             <!-- Tab 1: Setup -->
-            <div class="tab-panel active" id="setup-tab">
+            <div class="tab-panel active" id="setup-tab" role="tabpanel" aria-labelledby="setup-tab-button" tabindex="0">
                 <div class="step">
                     <h2>Welcome to the LUT Maker</h2>
                     <p>This tool helps you create custom Look-Up Tables (LUTs) for color correction in applications like OBS, based on a photo of a color reference chart.</p>
@@ -784,20 +134,25 @@ html {
 					<h3>Templates</h3>
 					<div class="controls">
 						<h4>Color Presets</h4>
-						<div style="display: flex; gap: 10px; margin: 10px 0;">
-							<select id="color-preset-select" style="flex-grow: 1;">
+						<div class="control-row template-preset-row">
+							<label class="visually-hidden" for="color-preset-select">Color preset</label>
+							<select id="color-preset-select">
 								<option value="">-- Select a Preset --</option>
+								<option value="demo3x3">Demo 3×3</option>
 								<option value="datacolor24">Datacolor SpyderCHECKR 24</option>
 								<option value="datacolor48">Datacolor SpyderCHECKR 48 (Full)</option>
 							</select>
 							<button id="apply-preset-button">Apply Preset</button>
 						</div>
 						<h4>Save/Load Template</h4>
-						<div style="display: flex; gap: 10px; margin: 10px 0;">
+						<div class="button-row template-actions">
 							<button id="save-template-button">Save Template</button>
 							<button id="load-template-button">Load Saved Template</button>
+							<button id="export-template-button">Export Template</button>
+							<input id="import-template-input" class="visually-hidden" type="file" accept="application/json,.json">
+							<label class="file-button" for="import-template-input">Import Template</label>
 						</div>
-						<p style="margin-top: 8px; font-size: 0.9em; color: #666;">Templates are saved to your browser's local storage.</p>
+						<p class="helper-text">Save locally for this browser, or export a JSON file to move a template between devices.</p>
 					</div>
 				</div>
                     <button id="setup-next" class="next-btn">Continue to Reference Colors</button>
@@ -805,7 +160,7 @@ html {
             </div>
             
             <!-- Tab 2: Reference Colors -->
-            <div class="tab-panel" id="reference-tab">
+            <div class="tab-panel" id="reference-tab" role="tabpanel" aria-labelledby="reference-tab-button" tabindex="0" hidden>
                 <div class="step">
                     <h2>Reference Colors</h2>
                     <p>Define the RGB values for each color in your reference chart. These are the "correct" colors that your camera should capture.</p>
@@ -846,20 +201,44 @@ html {
             </div>
             
             <!-- Tab 3: Color Card Photo -->
-            <div class="tab-panel" id="colorcard-tab">
+            <div class="tab-panel" id="colorcard-tab" role="tabpanel" aria-labelledby="colorcard-tab-button" tabindex="0" hidden>
                 <div class="step">
                     <h2>Upload Color Card Photo</h2>
                     <p>Upload a photo of your color reference chart taken with your camera under the lighting conditions you wish to create your LUT for.</p>
                     <p>Make sure the photo is well-lit and the entire color chart is visible and not distorted.</p>
                     
                     <div class="controls">
+                        <label class="visually-hidden" for="colorcard-upload">Upload color card image</label>
                         <input type="file" id="colorcard-upload" accept="image/*">
                         <button id="use-demo-image">Use Demo Image</button>
                     </div>
+
+                    <fieldset class="option-group">
+                        <legend>Sampling and alignment</legend>
+                        <div class="control-row">
+                            <label for="sampling-method">Color sampling:</label>
+                            <select id="sampling-method">
+                                <option value="histogram">Notebook-compatible histogram</option>
+                                <option value="median">Median channels</option>
+                                <option value="trimmed">10% trimmed mean</option>
+                                <option value="cluster">Robust RGB cluster</option>
+                            </select>
+                        </div>
+                        <label class="checkbox-row" for="alignment-toggle">
+                            <input type="checkbox" id="alignment-toggle">
+                            Align a skewed or rotated chart manually
+                        </label>
+                        <div class="button-row" id="alignment-controls" hidden>
+                            <button id="reset-alignment" type="button">Reset Corners</button>
+                            <button id="rotate-alignment-left" type="button">Rotate Grid Left</button>
+                            <button id="rotate-alignment-right" type="button">Rotate Grid Right</button>
+                        </div>
+                        <small id="alignment-help">Notebook-compatible sampling uses the full rectangular image. Enable alignment to drag the four labeled corners, or press 1–4 and use the arrow keys.</small>
+                    </fieldset>
                     
                     <div class="preview">
                         <h3>Preview</h3>
-                        <canvas id="colorcard-preview"></canvas>
+                        <canvas id="colorcard-preview" tabindex="0" aria-describedby="alignment-help" aria-label="Color card preview and optional alignment handles"></canvas>
                         <div id="colorcard-info"></div>
                     </div>
                     
@@ -871,7 +250,7 @@ html {
             </div>
             
             <!-- Tab 4: Process -->
-            <div class="tab-panel" id="process-tab">
+            <div class="tab-panel" id="process-tab" role="tabpanel" aria-labelledby="process-tab-button" tabindex="0" hidden>
                 <div class="step">
                     <h2>Process Color Transformation</h2>
                     <p>Extract colors from your photo and create the color transformation.</p>
@@ -909,14 +288,31 @@ html {
 							<input type="checkbox" id="weighted-regression-toggle">
 							<small>Prioritizes neutral colors and reduces outlier influence</small>
 						</div>
+                        <div class="slider-container">
+                            <label for="regression-solver">Regression solver:</label>
+                            <select id="regression-solver">
+                                <option value="notebook">Notebook-compatible (default)</option>
+                                <option value="qr">QR least squares (more stable)</option>
+                            </select>
+                            <small>QR is opt-in and can help with difficult charts; notebook-compatible mode preserves the original numerical behavior.</small>
+                        </div>
+                        <label class="checkbox-row" for="background-processing-toggle">
+                            <input type="checkbox" id="background-processing-toggle" checked>
+                            Use background processing for previews and exports
+                        </label>
                         <button id="process-button">Process Color Transformation</button>
                     </div>
-					
 
+                    <section class="quality-report" id="quality-report" aria-live="polite" hidden>
+                        <h3>Calibration Quality</h3>
+                        <p class="helper-text">Chart-fit diagnostics are measured before final rolloff, brightness, and gamma adjustments.</p>
+                        <div id="quality-summary"></div>
+                        <div id="quality-swatches" class="quality-swatches"></div>
+                    </section>
+
+                    <div class="log-container" id="process-log" role="log" aria-live="polite" aria-relevant="additions"></div>
                     
-                    <div class="log-container" id="process-log"></div>
-                    
-                    <div class="progress-container" id="process-progress-container">
+                    <div class="progress-container" id="process-progress-container" role="progressbar" aria-label="Color processing progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
                         <div class="progress-bar" id="process-progress-bar"></div>
                     </div>
                     
@@ -928,12 +324,13 @@ html {
             </div>
             
             <!-- Tab 5: Test & Adjust -->
-            <div class="tab-panel" id="test-tab">
+            <div class="tab-panel" id="test-tab" role="tabpanel" aria-labelledby="test-tab-button" tabindex="0" hidden>
                 <div class="step">
                     <h2>Test and Adjust Results</h2>
                     <p>Upload a test image to see how the color transformation affects it, and make adjustments if needed.</p>
                     
                     <div class="controls">
+                        <label class="visually-hidden" for="test-upload">Upload test image</label>
                         <input type="file" id="test-upload" accept="image/*">
                         <button id="use-demo-test">Use Demo Test Image</button>
                     </div>
@@ -943,11 +340,11 @@ html {
                         <div class="grid">
                             <div>
                                 <h4>Original</h4>
-                                <canvas id="test-original"></canvas>
+                                <canvas id="test-original" aria-label="Original test image"></canvas>
                             </div>
                             <div>
                                 <h4>Processed</h4>
-                                <canvas id="test-processed"></canvas>
+                                <canvas id="test-processed" aria-label="Processed test image"></canvas>
                             </div>
                         </div>
                     </div>
@@ -974,16 +371,21 @@ html {
             </div>
             
             <!-- Tab 6: Export LUT -->
-            <div class="tab-panel" id="export-tab">
+            <div class="tab-panel" id="export-tab" role="tabpanel" aria-labelledby="export-tab-button" tabindex="0" hidden>
                 <div class="step">
                     <h2>Export LUT</h2>
                     <p>Generate and download your custom LUT file.</p>
                     
                     <div class="controls">
-                        <div class="slider-container">
-                            <label for="lut-size-slider">CUBE LUT Size:</label>
-                            <input type="range" id="lut-size-slider" min="16" max="64" value="32" step="16" class="slider">
-                            <span id="lut-size-value" class="slider-value">32</span>
+                        <div class="slider-container" id="cube-size-control" hidden>
+                            <label for="lut-size-select">CUBE LUT Size:</label>
+                            <select id="lut-size-select">
+                                <option value="17">17 (common)</option>
+                                <option value="32" selected>32 (existing default)</option>
+                                <option value="33">33 (common)</option>
+                                <option value="64">64 (notebook)</option>
+                                <option value="65">65 (common high quality)</option>
+                            </select>
                             <small style="display: block; margin-top: 5px; color: #666;">(PNG LUTs are always 512x512)</small>
                         </div>
                         <div class="slider-container">
@@ -993,20 +395,25 @@ html {
                                 <option value="cube">CUBE</option>
                             </select>
                         </div>
+                        <div class="slider-container" id="cube-title-control" hidden>
+                            <label for="cube-title">CUBE title:</label>
+                            <input type="text" id="cube-title" value="Custom LUT" maxlength="80">
+                            <small>Included as CUBE metadata together with the standard 0–1 input domain.</small>
+                        </div>
                     </div>
                     
                     <div class="controls">
                         <button id="generate-lut">Generate LUT</button>
                     </div>
                     
-                    <div class="progress-container" id="export-progress-container">
+                    <div class="progress-container" id="export-progress-container" role="progressbar" aria-label="LUT export progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
                         <div class="progress-bar" id="export-progress-bar"></div>
                     </div>
                     
                     <div class="preview">
                         <h3>LUT Preview</h3>
-                        <canvas id="lut-preview"></canvas>
-                        <div id="lut-download-container" style="display: none;">
+                        <canvas id="lut-preview" aria-label="Generated LUT preview"></canvas>
+                        <div id="lut-download-container" hidden>
                             <button id="download-lut">Download LUT</button>
                         </div>
                     </div>
@@ -1017,1220 +424,9 @@ html {
                 </div>
             </div>
         </div>
-    </div>
+    </main>
     
     <script src="lut-core.js"></script>
-    <script>
-        // Main app state
-        const state = {
-            rows: 3,
-            columns: 3,
-            cellBorderPercentage: 25,
-            referenceColors: [],
-            capturedColors: [],
-            selectedCellIndex: null,
-            colorCardImage: null,
-            testImage: null,
-            processedTestImage: null,
-            polynomialDegree: 1,
-            brightnessAdjustment: 0,
-            gammaValue: 1.0,
-            lutSize: 32,
-            lutFormat: 'png',
-            lutImage: null,
-            cubeData: null,
-			useAdvancedProcessing: true,
-			applyRolloffCurves: true,
-			useWeightedRegression: false,
-			transformationModels: {
-				basic: {
-					red: null,
-					green: null,
-					blue: null
-				},
-				multivariate: {
-					red: null,
-					green: null,
-					blue: null
-				}
-			},
-			rolloffCurves: null,
-			isGeneratingLUT: false
-        };
-        
-		document.addEventListener('DOMContentLoaded', function() {
-		  // Call the original initialization
-		  initializeSliders();
-		  initializeTabs();
-		  initializeReferenceGrid();
-		  initializeColorCardUpload();
-		  initializeTestImageUpload();
-		  initializeProcessing();
-		  initializeExport();
-		  initializeEventListeners();
-		  initializeTemplateControls();
-		  
-		  // Try to load saved template on startup
-		  setTimeout(() => {
-			try {
-			  if (localStorage.getItem('lutMakerTemplate')) {
-				loadTemplate();
-			  }
-			} catch (e) {
-			  // Silently fail if local storage is not available
-			}
-		  }, 500);
-		  
-		  // Log welcome message
-		  logMessage('Welcome to the Browser-based LUT Maker!', 'info');
-		});
-        
-        // Debounce function to delay execution
-        function debounce(func, wait) {
-            let timeout;
-            return function executedFunction(...args) {
-                const later = () => {
-                    clearTimeout(timeout);
-                    func(...args);
-                };
-                clearTimeout(timeout);
-                timeout = setTimeout(later, wait);
-            };
-        }
-
-        // Auto-apply adjustments when sliders stop moving
-        const autoApplyAdjustments = debounce(function() {
-            if (state.testImage) {
-                processTestImage();
-            }
-        }, 500); // Wait 500ms after user stops adjusting
-
-        const refreshColorExtraction = debounce(function() {
-            if (state.colorCardImage) {
-                extractColorsFromImage(state.colorCardImage);
-            }
-        }, 250);
-
-        // Initialize sliders and inputs
-        function initializeSliders() {
-            // Rows slider
-            const rowsSlider = document.getElementById('rows-slider');
-            const rowsValue = document.getElementById('rows-value');
-            rowsSlider.addEventListener('input', function() {
-                state.rows = parseInt(this.value);
-                rowsValue.textContent = state.rows;
-                initializeReferenceGrid();
-                state.capturedColors = [];
-                updateCapturedColorsGrid();
-                invalidateTransformation();
-                refreshColorExtraction();
-            });
-            
-            // Columns slider
-            const columnsSlider = document.getElementById('columns-slider');
-            const columnsValue = document.getElementById('columns-value');
-            columnsSlider.addEventListener('input', function() {
-                state.columns = parseInt(this.value);
-                columnsValue.textContent = state.columns;
-                initializeReferenceGrid();
-                state.capturedColors = [];
-                updateCapturedColorsGrid();
-                invalidateTransformation();
-                refreshColorExtraction();
-            });
-            
-            // Cell border slider
-            const borderSlider = document.getElementById('border-slider');
-            const borderValue = document.getElementById('border-value');
-            borderSlider.addEventListener('input', function() {
-                state.cellBorderPercentage = parseInt(this.value);
-                borderValue.textContent = state.cellBorderPercentage + '%';
-                state.capturedColors = [];
-                updateCapturedColorsGrid();
-                invalidateTransformation();
-                refreshColorExtraction();
-            });
-            
-            // Polynomial degree slider
-            const polySlider = document.getElementById('polynomial-slider');
-            const polyValue = document.getElementById('polynomial-value');
-            polySlider.addEventListener('input', function() {
-                state.polynomialDegree = parseInt(this.value);
-                polyValue.textContent = state.polynomialDegree;
-                invalidateTransformation();
-            });
-            
-            // Brightness slider with auto-apply
-            const brightnessSlider = document.getElementById('brightness-slider');
-            const brightnessValue = document.getElementById('brightness-value');
-            brightnessSlider.addEventListener('input', function() {
-                state.brightnessAdjustment = parseInt(this.value);
-                brightnessValue.textContent = state.brightnessAdjustment;
-                invalidateGeneratedLUT();
-                autoApplyAdjustments(); // Debounced update while dragging
-            });
-            brightnessSlider.addEventListener('change', function() {
-                // Apply immediately when user releases the slider
-                if (state.testImage) {
-                    processTestImage();
-                }
-            });
-            
-            // Gamma slider with auto-apply
-            const gammaSlider = document.getElementById('gamma-slider');
-            const gammaValue = document.getElementById('gamma-value');
-            gammaSlider.addEventListener('input', function() {
-                state.gammaValue = parseFloat(this.value);
-                gammaValue.textContent = state.gammaValue.toFixed(1);
-                invalidateGeneratedLUT();
-                autoApplyAdjustments(); // Debounced update while dragging
-            });
-            gammaSlider.addEventListener('change', function() {
-                // Apply immediately when user releases the slider
-                if (state.testImage) {
-                    processTestImage();
-                }
-            });
-            
-            // LUT size slider
-            const lutSizeSlider = document.getElementById('lut-size-slider');
-            const lutSizeValue = document.getElementById('lut-size-value');
-            lutSizeSlider.addEventListener('input', function() {
-                state.lutSize = parseInt(this.value);
-                lutSizeValue.textContent = state.lutSize;
-                invalidateGeneratedLUT();
-            });
-            
-            // LUT format select
-            const lutFormat = document.getElementById('lut-format');
-            lutFormat.addEventListener('change', function() {
-                state.lutFormat = this.value;
-                invalidateGeneratedLUT();
-            });
-        }
-        
-        // Helper function to log messages
-        function logMessage(message, type = 'info') {
-            const logContainer = document.getElementById('process-log');
-            const logEntry = document.createElement('div');
-            logEntry.className = `log-entry ${type}`;
-            logEntry.textContent = message;
-            logContainer.appendChild(logEntry);
-            logContainer.scrollTop = logContainer.scrollHeight;
-        }
-        
-        // Update progress bar
-        function updateProgress(containerId, value) {
-            const progressBar = document.getElementById(`${containerId}-progress-bar`);
-            progressBar.style.width = `${value}%`;
-        }
-
-        function invalidateGeneratedLUT() {
-            state.cubeData = null;
-            state.lutImage = null;
-            document.getElementById('lut-download-container').style.display = 'none';
-            updateProgress('export', 0);
-        }
-
-        function invalidateTransformation() {
-            state.transformationModels = {
-                basic: { red: null, green: null, blue: null },
-                multivariate: { red: null, green: null, blue: null }
-            };
-            state.rolloffCurves = null;
-            document.getElementById('process-next').disabled = true;
-            updateProgress('process', 0);
-            invalidateGeneratedLUT();
-        }
-
-        function getTransformOptions(quantizeOutput = false) {
-            return {
-                models: state.transformationModels,
-                useAdvancedProcessing: state.useAdvancedProcessing,
-                applyRolloffCurves: state.applyRolloffCurves,
-                rolloffCurves: state.rolloffCurves,
-                brightnessAdjustment: state.brightnessAdjustment,
-                gammaValue: state.gammaValue,
-                quantizeOutput
-            };
-        }
-
-        function setExportBusy(isBusy) {
-            state.isGeneratingLUT = isBusy;
-            const generateButton = document.getElementById('generate-lut');
-            const downloadButton = document.getElementById('download-lut');
-            generateButton.disabled = isBusy;
-            generateButton.textContent = isBusy ? 'Generating…' : 'Generate LUT';
-            downloadButton.disabled = isBusy;
-        }
-        
-        // RGB to Hex conversion
-        function rgbToHex(rgb) {
-            return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
-        }
-        
-        // Update the captured colors grid
-        function updateCapturedColorsGrid() {
-            const gridContainer = document.getElementById('captured-grid');
-            gridContainer.innerHTML = '';
-            gridContainer.style.gridTemplateColumns = `repeat(${state.columns}, 1fr)`;
-            
-            for (let i = 0; i < state.capturedColors.length; i++) {
-                const cell = document.createElement('div');
-                cell.className = 'color-cell';
-                cell.style.backgroundColor = rgbToHex(state.capturedColors[i]);
-                gridContainer.appendChild(cell);
-            }
-            
-            // Also update target grid
-            const targetGrid = document.getElementById('target-grid');
-            targetGrid.innerHTML = '';
-            targetGrid.style.gridTemplateColumns = `repeat(${state.columns}, 1fr)`;
-            
-            for (let i = 0; i < state.referenceColors.length; i++) {
-                const cell = document.createElement('div');
-                cell.className = 'color-cell';
-                cell.style.backgroundColor = rgbToHex(state.referenceColors[i]);
-                targetGrid.appendChild(cell);
-            }
-        }
-        
-        // Initialize tabs
-        function initializeTabs() {
-            const tabButtons = document.querySelectorAll('.tab-btn');
-            const tabPanels = document.querySelectorAll('.tab-panel');
-            
-            tabButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const tabId = this.getAttribute('data-tab');
-                    
-                    // Only allow clicking on enabled tabs
-                    if (this.disabled) return;
-                    
-                    // Deactivate all tabs
-                    tabButtons.forEach(btn => btn.classList.remove('active'));
-                    tabPanels.forEach(panel => panel.classList.remove('active'));
-                    
-                    // Activate the clicked tab
-                    this.classList.add('active');
-                    document.getElementById(`${tabId}-tab`).classList.add('active');
-                });
-            });
-            
-            // Next button handlers
-            document.getElementById('setup-next').addEventListener('click', function() {
-                enableTab('reference');
-                activateTab('reference');
-            });
-            
-            document.getElementById('reference-next').addEventListener('click', function() {
-                enableTab('colorcard');
-                activateTab('colorcard');
-            });
-            
-            document.getElementById('colorcard-next').addEventListener('click', function() {
-                enableTab('process');
-                activateTab('process');
-            });
-            
-            document.getElementById('process-next').addEventListener('click', function() {
-                enableTab('test');
-                activateTab('test');
-            });
-            
-            document.getElementById('test-next').addEventListener('click', function() {
-                enableTab('export');
-                activateTab('export');
-            });
-            
-            // Previous button handlers
-            document.getElementById('reference-prev').addEventListener('click', function() {
-                activateTab('setup');
-            });
-            
-            document.getElementById('colorcard-prev').addEventListener('click', function() {
-                activateTab('reference');
-            });
-            
-            document.getElementById('process-prev').addEventListener('click', function() {
-                activateTab('colorcard');
-            });
-            
-            document.getElementById('test-prev').addEventListener('click', function() {
-                activateTab('process');
-            });
-            
-            document.getElementById('export-prev').addEventListener('click', function() {
-                activateTab('test');
-            });
-        }
-        
-        // Enable a tab
-        function enableTab(tabId) {
-            const tabButton = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
-            if (tabButton) {
-                tabButton.disabled = false;
-            }
-        }
-        
-        // Activate a tab
-        function activateTab(tabId) {
-            const tabButton = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
-            if (tabButton && !tabButton.disabled) {
-                tabButton.click();
-            }
-        }
-        
-        // Initialize reference color grid
-        function initializeReferenceGrid() {
-            const gridContainer = document.getElementById('reference-grid');
-            gridContainer.innerHTML = '';
-            gridContainer.style.gridTemplateColumns = `repeat(${state.columns}, 1fr)`;
-            
-            // Initialize with default colors if not already set
-            if (state.referenceColors.length !== state.rows * state.columns) {
-                state.referenceColors = Array(state.rows * state.columns).fill().map(() => [128, 128, 128]);
-            }
-            
-            // Create color cells
-            for (let i = 0; i < state.rows * state.columns; i++) {
-                const cell = document.createElement('div');
-                cell.className = 'color-cell';
-                cell.dataset.index = i;
-                cell.style.backgroundColor = rgbToHex(state.referenceColors[i]);
-                
-                cell.addEventListener('click', function() {
-                    selectCell(parseInt(this.dataset.index));
-                });
-                
-                gridContainer.appendChild(cell);
-            }
-        }
-        
-        // Select a color cell
-        function selectCell(index) {
-            state.selectedCellIndex = index;
-            
-            // Update all cell borders
-            const cells = document.querySelectorAll('.color-cell');
-            cells.forEach(cell => {
-                cell.style.border = '1px solid #ddd';
-            });
-            
-            // Highlight selected cell
-            const selectedCell = document.querySelector(`.color-cell[data-index="${index}"]`);
-            if (selectedCell) {
-                selectedCell.style.border = '3px solid #000';
-            }
-            
-            // Update color inputs
-            const [r, g, b] = state.referenceColors[index];
-            document.getElementById('red-input').value = r;
-            document.getElementById('green-input').value = g;
-            document.getElementById('blue-input').value = b;
-            
-            // Update color preview
-            const colorPreview = document.getElementById('selected-color-preview');
-            colorPreview.style.backgroundColor = rgbToHex(state.referenceColors[index]);
-        }
-        
-       function initializeColorCardUpload() {
-			const fileInput = document.getElementById('colorcard-upload');
-			fileInput.addEventListener('change', function(event) {
-			  const file = event.target.files[0];
-			  if (file) {
-				loadImage(file, 'colorcard'); // Fixed: using 'colorcard' instead of undefined 'type'
-				logMessage(`Color card image loaded successfully`, 'success');
-			  }
-			});
-			
-			// Add demo image functionality properly
-			const demoButton = document.getElementById('use-demo-image');
-			if (demoButton) {
-			  demoButton.addEventListener('click', function() {
-				loadDemoImage('colorcard');
-			  });
-			}
-		  };
-        // Extract colors from the color card image
-        function extractColorsFromImage(img) {
-            logMessage('Extracting colors from image...', 'info');
-            document.getElementById('colorcard-next').disabled = true;
-            invalidateTransformation();
-            
-            // Create a temporary canvas to process the image
-            const tempCanvas = document.createElement('canvas');
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCanvas.width = img.width;
-            tempCanvas.height = img.height;
-            tempCtx.drawImage(img, 0, 0);
-            
-            // Extract colors from each cell
-            state.capturedColors = [];
-            
-            for (let row = 0; row < state.rows; row++) {
-                for (let col = 0; col < state.columns; col++) {
-                    // Match the notebook's independently-truncated start/end bounds.
-                    const { x, y, width, height } = LUTCore.calculateCellBounds(
-                        img.width,
-                        img.height,
-                        state.rows,
-                        state.columns,
-                        state.cellBorderPercentage,
-                        row,
-                        col
-                    );
-
-                    if (width <= 0 || height <= 0) {
-                        throw new Error('Color grid cells are too small for the selected border percentage');
-                    }
-                    
-                    // Get the cell data
-                    const cellData = tempCtx.getImageData(x, y, width, height);
-                    
-                    // Calculate color histograms to find peak values
-                    const rHistogram = new Array(256).fill(0);
-                    const gHistogram = new Array(256).fill(0);
-                    const bHistogram = new Array(256).fill(0);
-                    
-                    for (let i = 0; i < cellData.data.length; i += 4) {
-                        rHistogram[cellData.data[i]]++;
-                        gHistogram[cellData.data[i + 1]]++;
-                        bHistogram[cellData.data[i + 2]]++;
-                    }
-                    
-                    // Find peak values
-                    const r = rHistogram.indexOf(Math.max(...rHistogram));
-                    const g = gHistogram.indexOf(Math.max(...gHistogram));
-                    const b = bHistogram.indexOf(Math.max(...bHistogram));
-                    
-                    state.capturedColors.push([r, g, b]);
-                }
-            }
-            
-            // Update the captured colors grid
-            updateCapturedColorsGrid();
-            
-            logMessage('Color extraction complete', 'success');
-            
-            // Enable the next button
-            document.getElementById('colorcard-next').disabled = false;
-        }
-        
-        // Load an image file
-		function loadImage(file, type) {
-			const reader = new FileReader();
-			
-			reader.onload = function(e) {
-				const img = new Image();
-				img.onload = function() {
-					if (type === 'colorcard') {
-						state.colorCardImage = img;
-						displayColorCardImage(img);
-					} else if (type === 'test') {
-						state.testImage = img;
-						displayTestImage(img);
-						document.getElementById('test-next').disabled = false;
-					}
-				};
-				img.src = e.target.result;
-			};
-			
-			reader.readAsDataURL(file);
-		}
-        
-        // Initialize the processing functionality
-        function initializeProcessing() {
-            // Process button
-            document.getElementById('process-button').addEventListener('click', function() {
-                processColorTransformation();
-            });
-            
-            // Update selected color
-            document.getElementById('update-color').addEventListener('click', function() {
-                if (state.selectedCellIndex !== null) {
-                    const r = parseInt(document.getElementById('red-input').value);
-                    const g = parseInt(document.getElementById('green-input').value);
-                    const b = parseInt(document.getElementById('blue-input').value);
-                    
-                    state.referenceColors[state.selectedCellIndex] = [
-                        isNaN(r) ? 0 : Math.min(255, Math.max(0, r)),
-                        isNaN(g) ? 0 : Math.min(255, Math.max(0, g)),
-                        isNaN(b) ? 0 : Math.min(255, Math.max(0, b))
-                    ];
-                    
-                    // Update grid
-                    const cell = document.querySelector(`.color-cell[data-index="${state.selectedCellIndex}"]`);
-                    if (cell) {
-                        cell.style.backgroundColor = rgbToHex(state.referenceColors[state.selectedCellIndex]);
-                    }
-                    
-                    // Update preview
-                    const colorPreview = document.getElementById('selected-color-preview');
-                    colorPreview.style.backgroundColor = rgbToHex(state.referenceColors[state.selectedCellIndex]);
-                    updateCapturedColorsGrid();
-                    invalidateTransformation();
-                }
-            });
-            
-            // Reset colors
-            document.getElementById('reset-colors').addEventListener('click', function() {
-                state.referenceColors = Array(state.rows * state.columns).fill().map(() => [128, 128, 128]);
-                initializeReferenceGrid();
-                updateCapturedColorsGrid();
-                invalidateTransformation();
-            });
-            
-            // Use example colors (color chart from the original code)
-            document.getElementById('use-example').addEventListener('click', function() {
-                const exampleColors = [
-                    [147, 163, 96], [154, 64, 73], [0, 166, 153],
-                    [61, 65, 93], [96, 102, 102], [247, 185, 48],
-                    [62, 63, 64], [245, 243, 236], [138, 83, 129]
-                ];
-                
-                // Only use as many colors as there are cells
-                state.referenceColors = [];
-                for (let i = 0; i < state.rows * state.columns; i++) {
-                    if (i < exampleColors.length) {
-                        state.referenceColors.push(exampleColors[i]);
-                    } else {
-                        state.referenceColors.push([128, 128, 128]);
-                    }
-                }
-                
-                initializeReferenceGrid();
-                updateCapturedColorsGrid();
-                invalidateTransformation();
-                logMessage('Example colors loaded', 'success');
-            });
-        }
-		
-		const colorPresets = {
-		  datacolor24: {
-			name: "Datacolor SpyderCHECKR 24",
-			rows: 4,
-			columns: 6,
-			colors: [
-			  [ 98, 187, 166], [126, 125, 174], [ 82, 106,  60], [ 87, 120, 155], [197, 145, 125], [112,  76,  60],
-			  [222, 118,  32], [ 58,  89, 160], [195 , 79,  95], [ 83,  58, 106], [157, 188,  54], [238, 158,  25],
-			  [  0, 127, 159], [192,  75, 145], [245, 205,   0], [186,  26,  51], [ 57, 146,  64], [ 25,  55, 135],
-			  [249, 242, 238], [202, 198, 195], [161, 157, 154], [122, 118, 116], [ 80,  80,  78], [ 43,  41,  43]
-			]
-		  },
-		  datacolor48: {
-			name: "Datacolor SpyderCHECKR 48",
-			rows: 6,
-			columns: 8,
-			colors: [
-			  /* sRGB values source: https://www.datacolor.com/spyder/downloads/SpyderCheckr_Color_Data_V2.pdf                                               */
-			  /*                                     LEFT                                                                  RIGHT                             */
-			  /*             A                B                C                D                  E                F                G                H      */
-			  /* 1 */ [210, 121, 117], [218, 203, 201], [237, 206, 186], [241, 233, 229],   [249, 242, 238], [  0, 127, 159], [222, 118,  32], [ 98, 187, 166],
-			  /* 2 */ [216, 179,  90], [203, 205, 196], [211, 175, 133], [229, 222, 220],   [202, 198, 195], [192,  75, 145], [ 58,  88, 159], [126, 125, 174],
-			  /* 3 */ [127, 175, 120], [206, 203, 208], [193, 149,  91], [182, 178, 176],   [161, 157, 154], [245, 205,   0], [195,  79,  95], [ 82, 106,  60],
-			  /* 4 */ [ 66, 157, 179], [ 66,  57,  58], [139,  93,  61], [139, 136, 135],   [122, 118, 116], [186,  26,  51], [ 83,  58, 106], [ 87, 120, 155],
-			  /* 5 */ [116, 147, 194], [ 54,  61,  56], [ 74,  55,  46], [100,  99,  97],   [ 80,  80,  78], [ 57, 146,  64], [157, 188,  54], [197, 145, 125],
-			  /* 6 */ [190, 121, 154], [ 63,  60,  69], [ 57,  54,  56], [ 63,  61,  62],   [ 43,  41,  43], [ 25,  55, 135], [238, 158,  25], [112,  76,  60]
-			]
-		  },
-		  // Can add other presets here
-		};
-		
-		// Add template saving/loading functionality
-		function saveTemplate() {
-		  const template = {
-			rows: state.rows,
-			columns: state.columns,
-			cellBorderPercentage: state.cellBorderPercentage,
-			referenceColors: state.referenceColors
-		  };
-		  
-		  try {
-			localStorage.setItem('lutMakerTemplate', JSON.stringify(template));
-			logMessage('Template saved to browser storage', 'success');
-		  } catch (error) {
-			logMessage('Failed to save template: ' + error.message, 'error');
-		  }
-		}
-
-		function loadTemplate() {
-		  try {
-			const savedTemplate = localStorage.getItem('lutMakerTemplate');
-			if (savedTemplate) {
-			  const template = JSON.parse(savedTemplate);
-			  
-			  // Update state
-			  state.rows = template.rows;
-			  state.columns = template.columns;
-			  state.cellBorderPercentage = template.cellBorderPercentage;
-			  state.referenceColors = template.referenceColors;
-			  
-			  // Update UI
-			  document.getElementById('rows-slider').value = state.rows;
-			  document.getElementById('rows-value').textContent = state.rows;
-			  
-			  document.getElementById('columns-slider').value = state.columns;
-			  document.getElementById('columns-value').textContent = state.columns;
-			  
-			  document.getElementById('border-slider').value = state.cellBorderPercentage;
-			  document.getElementById('border-value').textContent = state.cellBorderPercentage + '%';
-			  
-			  // Refresh the grid
-			  initializeReferenceGrid();
-			  state.capturedColors = [];
-			  updateCapturedColorsGrid();
-			  invalidateTransformation();
-			  refreshColorExtraction();
-			  
-			  logMessage('Template loaded from browser storage', 'success');
-			} else {
-			  logMessage('No saved template found', 'warning');
-			}
-		  } catch (error) {
-			logMessage('Failed to load template: ' + error.message, 'error');
-		  }
-		}
-
-		// Apply preset colors
-		function applyPreset(presetName) {
-		  const preset = colorPresets[presetName];
-		  if (!preset) {
-			logMessage(`Preset "${presetName}" not found`, 'error');
-			return;
-		  }
-		  
-		  // Update grid dimensions
-		  state.rows = preset.rows;
-		  state.columns = preset.columns;
-		  document.getElementById('rows-slider').value = state.rows;
-		  document.getElementById('rows-value').textContent = state.rows;
-		  document.getElementById('columns-slider').value = state.columns;
-		  document.getElementById('columns-value').textContent = state.columns;
-		  
-		  // Update reference colors
-		  state.referenceColors = [...preset.colors];
-		  
-		  // Refresh the grid
-		  initializeReferenceGrid();
-		  state.capturedColors = [];
-		  updateCapturedColorsGrid();
-		  invalidateTransformation();
-		  refreshColorExtraction();
-		  
-		  logMessage(`Applied "${preset.name}" color preset`, 'success');
-		}
-
-		// Initialize presets dropdown and template UI
-		function initializeTemplateControls() {
-		  // Add event listeners for template buttons
-		  document.getElementById('apply-preset-button').addEventListener('click', function() {
-			const select = document.getElementById('color-preset-select');
-			const selectedPreset = select.value;
-			if (selectedPreset) {
-			  applyPreset(selectedPreset);
-			} else {
-			  logMessage('Please select a preset first', 'warning');
-			}
-		  });
-		  
-		  document.getElementById('save-template-button').addEventListener('click', saveTemplate);
-		  document.getElementById('load-template-button').addEventListener('click', loadTemplate);
-		}
-		
-        
-        // Color-model fitting is implemented in lut-core.js.
-        // Process the test image with the current transformation
-        function processTestImage() {
-            if (!state.testImage || !state.transformationModels.basic.red) {
-                return;
-            }
-            
-            logMessage('Processing test image...', 'info');
-
-            try {
-                const tempCanvas = document.createElement('canvas');
-                const tempCtx = tempCanvas.getContext('2d');
-                tempCanvas.width = state.testImage.width;
-                tempCanvas.height = state.testImage.height;
-                tempCtx.drawImage(state.testImage, 0, 0);
-
-                const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-                const data = imageData.data;
-                const transformOptions = getTransformOptions(true);
-
-                for (let index = 0; index < data.length; index += 4) {
-                    const [r, g, b] = LUTCore.transformRgb(
-                        data[index],
-                        data[index + 1],
-                        data[index + 2],
-                        transformOptions
-                    );
-                    data[index] = r;
-                    data[index + 1] = g;
-                    data[index + 2] = b;
-                }
-
-                tempCtx.putImageData(imageData, 0, 0);
-
-                const processedCanvas = document.getElementById('test-processed');
-                const processedCtx = processedCanvas.getContext('2d');
-                processedCtx.clearRect(0, 0, processedCanvas.width, processedCanvas.height);
-                processedCtx.drawImage(tempCanvas, 0, 0, processedCanvas.width, processedCanvas.height);
-
-                logMessage('Test image processing complete', 'success');
-            } catch (error) {
-                logMessage(`Test image processing failed: ${error.message}`, 'error');
-            }
-        }
-        
-        // Initialize export functionality
-        function initializeExport() {
-            document.getElementById('generate-lut').addEventListener('click', function() {
-                generateLUT();
-            });
-            
-            document.getElementById('download-lut').addEventListener('click', function() {
-                downloadLUT();
-            });
-        }
-		
-		async function generateLUT() {
-			if (!state.transformationModels.basic.red) {
-				logMessage('No color transformation available. Please process colors first.', 'error');
-				return;
-			}
-			if (state.isGeneratingLUT) {
-				return;
-			}
-
-			setExportBusy(true);
-			invalidateGeneratedLUT();
-			logMessage('Generating LUT...', 'info');
-
-			try {
-				// Let the busy state paint before a potentially large CUBE calculation.
-				await new Promise(resolve => requestAnimationFrame(resolve));
-				const lutCanvas = document.getElementById('lut-preview');
-				const lutCtx = lutCanvas.getContext('2d');
-
-				if (state.lutFormat === 'png') {
-					await generate2dPngLUT(lutCanvas, lutCtx);
-					state.lutImage = true;
-				} else if (state.lutFormat === 'cube') {
-					generate3dCubeLUT(lutCanvas, lutCtx);
-				}
-
-				updateProgress('export', 100);
-				logMessage('LUT generation complete!', 'success');
-				document.getElementById('lut-download-container').style.display = 'block';
-			} catch (error) {
-				invalidateGeneratedLUT();
-				logMessage(`LUT generation failed: ${error.message}`, 'error');
-			} finally {
-				setExportBusy(false);
-			}
-		}
-
-		function applyTransformations(r, g, b, quantizeOutput = true) {
-			return LUTCore.transformRgb(r, g, b, getTransformOptions(quantizeOutput));
-		}
-
-		function transformLutImageData(imageData) {
-			const data = imageData.data;
-			const transformOptions = getTransformOptions(true);
-
-			for (let index = 0; index < data.length; index += 4) {
-				const [r, g, b] = LUTCore.transformRgb(
-					data[index],
-					data[index + 1],
-					data[index + 2],
-					transformOptions
-				);
-				data[index] = r;
-				data[index + 1] = g;
-				data[index + 2] = b;
-				data[index + 3] = 255;
-			}
-
-			return imageData;
-		}
-
-		function generate2dPngLUT(lutCanvas, lutCtx) {
-			const lutSize = 512;
-			lutCanvas.width = lutSize;
-			lutCanvas.height = lutSize;
-
-			return new Promise((resolve, reject) => {
-				const img = new Image();
-				img.onload = function() {
-					try {
-						lutCtx.drawImage(img, 0, 0, lutSize, lutSize);
-						const imageData = lutCtx.getImageData(0, 0, lutSize, lutSize);
-						lutCtx.putImageData(transformLutImageData(imageData), 0, 0);
-						logMessage('LUT transformation applied to neutral LUT', 'success');
-						resolve();
-					} catch (error) {
-						reject(error);
-					}
-				};
-
-				img.onerror = function() {
-					try {
-						logMessage('Neutral LUT could not be loaded; using the exact generated layout', 'warning');
-						generateLUTFromScratch(lutCanvas, lutCtx);
-						resolve();
-					} catch (error) {
-						reject(error);
-					}
-				};
-
-				img.src = 'neutral-lut.png';
-			});
-		}
-
-		function generateLUTFromScratch(lutCanvas, lutCtx) {
-			const lutSize = 512;
-			const lutData = lutCtx.createImageData(lutSize, lutSize);
-			const data = lutData.data;
-
-			for (let y = 0; y < lutSize; y++) {
-				for (let x = 0; x < lutSize; x++) {
-					const [r, g, b] = LUTCore.neutralLutRgbAt(x, y);
-					const index = (y * lutSize + x) * 4;
-					data[index] = r;
-					data[index + 1] = g;
-					data[index + 2] = b;
-					data[index + 3] = 255;
-				}
-			}
-
-			lutCtx.putImageData(transformLutImageData(lutData), 0, 0);
-		}
-
-		function generate3dCubeLUT(lutCanvas, lutCtx) {
-		  // Default to 33×33×33 grid (standard size for 3D LUTs) or use state.lutSize
-		  const size = state.lutSize || 33;
-		  
-		  logMessage(`Generating ${size}×${size}×${size} CUBE LUT data...`, 'info');
-		  
-		  state.cubeData = LUTCore.generateCubeData(
-			size,
-			getTransformOptions(false),
-			progress => updateProgress('export', progress)
-		  );
-		  generateCubePreview(lutCanvas, lutCtx);
-		  return state.cubeData;
-		}
-		
-		// Generate a visual representation for the CUBE LUT preview
-		function generateCubePreview(lutCanvas, lutCtx) {
-		  // Set canvas dimensions for preview
-		  lutCanvas.width = 512;
-		  lutCanvas.height = 512;
-		  lutCtx.clearRect(0, 0, lutCanvas.width, lutCanvas.height);
-		  
-		  // Display size info and create a visual representation
-		  lutCtx.fillStyle = '#f8f8f8';
-		  lutCtx.fillRect(0, 0, lutCanvas.width, lutCanvas.height);
-		  
-		  // Draw header info
-		  lutCtx.fillStyle = '#333333';
-		  lutCtx.font = 'bold 24px sans-serif';
-		  lutCtx.fillText(`CUBE LUT (${state.lutSize}×${state.lutSize}×${state.lutSize})`, 40, 40);
-		  
-		  // Draw file info
-		  lutCtx.font = '16px monospace';
-		  lutCtx.fillText(`# CUBE LUT generated by WebLUT`, 40, 70);
-		  lutCtx.fillText(`LUT_3D_SIZE ${state.lutSize}`, 40, 95);
-		  
-		  // Draw a grid representation - slightly smaller and positioned higher
-		  const gridSize = Math.min(16, state.lutSize); // Limit grid lines for cleaner visual
-		  const cellSize = 280 / gridSize;
-		  const startX = 116;
-		  const startY = 120;
-		  
-		  // Draw grid borders
-		  lutCtx.strokeStyle = '#666666';
-		  lutCtx.lineWidth = 1;
-		  
-		  // Draw X-Y plane
-		  lutCtx.strokeRect(startX, startY, 280, 280);
-		  
-		  // Draw some sample lines to represent the 3D grid
-		  lutCtx.lineWidth = 0.5;
-		  for (let i = 1; i < gridSize; i++) {
-			// X-Y plane horizontal lines
-			lutCtx.beginPath();
-			lutCtx.moveTo(startX, startY + i * cellSize);
-			lutCtx.lineTo(startX + 280, startY + i * cellSize);
-			lutCtx.stroke();
-			
-			// X-Y plane vertical lines
-			lutCtx.beginPath();
-			lutCtx.moveTo(startX + i * cellSize, startY);
-			lutCtx.lineTo(startX + i * cellSize, startY + 280);
-			lutCtx.stroke();
-		  }
-		  
-		  // Indicate file is ready for download
-		  lutCtx.font = 'bold 18px sans-serif';
-		  lutCtx.fillStyle = '#009900';
-		  lutCtx.fillText('CUBE file ready for download!', 156, 420);
-		  
-		  // Draw legend with sample colors - moved higher up
-		  lutCtx.fillStyle = '#333333';
-		  lutCtx.font = 'bold 16px sans-serif';
-		  lutCtx.fillText('Sample Color Transformations:', 40, 440);
-		  
-		  // Draw sample color squares with transformations
-		  const sampleColors = [
-			[0, 0, 0],      // Black
-			[255, 0, 0],    // Red
-			[0, 255, 0],    // Green
-			[0, 0, 255],    // Blue
-			[255, 255, 0],  // Yellow
-			[255, 0, 255],  // Magenta
-			[0, 255, 255],  // Cyan
-			[255, 255, 255] // White
-		  ];
-		  
-		  const colorNames = ['Black', 'Red', 'Green', 'Blue', 'Yellow', 'Magenta', 'Cyan', 'White'];
-		  
-		  // Draw original and transformed color pairs - reorganized in two rows
-		  for (let i = 0; i < sampleColors.length; i++) {
-			// Position in two rows of 4 items
-			const x = 40 + (i % 4) * 120;
-			const y = 460 + Math.floor(i / 4) * 40;
-			
-			const [r, g, b] = sampleColors[i];
-			
-			// Draw original color
-			lutCtx.fillStyle = `rgb(${r},${g},${b})`;
-			lutCtx.fillRect(x, y, 15, 15);
-			
-			// Apply transformation
-			const transformedColor = applyTransformations(r, g, b, true);
-			
-			// Ensure valid RGB values
-			const [tR, tG, tB] = transformedColor.map(v => Math.min(255, Math.max(0, Math.round(v))));
-			
-			// Draw transformed color
-			lutCtx.fillStyle = `rgb(${tR},${tG},${tB})`;
-			lutCtx.fillRect(x + 25, y, 15, 15);
-			
-			// Draw label
-			lutCtx.fillStyle = '#333333';
-			lutCtx.font = '12px sans-serif';
-			lutCtx.fillText(colorNames[i], x + 50, y + 12);
-		  }
-		}
-		
-        function downloadLUT() {
-		  if (state.isGeneratingLUT) {
-			logMessage('Please wait for LUT generation to finish', 'warning');
-			return;
-		  }
-
-		  if (state.lutFormat === 'png' && state.lutImage) {
-			const lutCanvas = document.getElementById('lut-preview');
-			
-			// Download the LUT as PNG
-			const dataURL = lutCanvas.toDataURL('image/png');
-			const a = document.createElement('a');
-			a.href = dataURL;
-			a.download = 'custom-lut.png';
-			a.click();
-			
-			logMessage('LUT downloaded successfully!', 'success');
-		  } else if (state.lutFormat === 'cube' && state.cubeData) {
-			// Create blob from cube data
-			const blob = new Blob([state.cubeData], { type: 'text/plain' });
-			const url = URL.createObjectURL(blob);
-			
-			// Create temporary link and trigger download
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = 'custom-lut.cube';
-			document.body.appendChild(a); // Need to append to body for Firefox
-			a.click();
-			document.body.removeChild(a); // Clean up
-			URL.revokeObjectURL(url);
-			
-			logMessage('CUBE file downloaded successfully!', 'success');
-		  } else {
-			logMessage('No LUT data available for download', 'error');
-		  }
-		}
-        
-        // Initialize additional event listeners
-        function initializeEventListeners() {
-            document.getElementById('advanced-processing-toggle').addEventListener('change', function() {
-				state.useAdvancedProcessing = this.checked;
-				invalidateGeneratedLUT();
-				if (state.testImage) {
-					processTestImage();
-				}
-				logMessage(`Advanced processing ${this.checked ? 'enabled' : 'disabled'}`, 'info');
-			});
-			
-			document.getElementById('rolloff-curves-toggle').addEventListener('change', function() {
-				state.applyRolloffCurves = this.checked;
-				invalidateGeneratedLUT();
-				if (state.testImage) {
-					processTestImage();
-				}
-				logMessage(`Shadow/highlight rolloff ${this.checked ? 'enabled' : 'disabled'}`, 'info');
-			});
-			
-			document.getElementById('weighted-regression-toggle').addEventListener('change', function() {
-				state.useWeightedRegression = this.checked;
-				invalidateTransformation();
-				logMessage(`Weighted regression ${this.checked ? 'enabled' : 'disabled'}; process the color transformation again`, 'info');
-			});
-        }
-		
-		        // Display the test image
-        function displayTestImage(img) {
-            // Original image
-            const originalCanvas = document.getElementById('test-original');
-            const originalCtx = originalCanvas.getContext('2d');
-            
-            // Set canvas size
-            const maxWidth = 1280;
-            const scale = Math.min(1, maxWidth / img.width);
-            originalCanvas.width = img.width * scale;
-            originalCanvas.height = img.height * scale;
-            
-            // Draw original image
-            originalCtx.drawImage(img, 0, 0, originalCanvas.width, originalCanvas.height);
-            
-            // Processed image (initial version is same as original)
-            const processedCanvas = document.getElementById('test-processed');
-            const processedCtx = processedCanvas.getContext('2d');
-            
-            processedCanvas.width = originalCanvas.width;
-            processedCanvas.height = originalCanvas.height;
-            processedCtx.drawImage(img, 0, 0, processedCanvas.width, processedCanvas.height);
-            
-            // Process the test image
-            processTestImage();
-        }
-        
-        // Load a demo image
-		function loadDemoImage(type) {
-			const demoUrl = type === 'colorcard' 
-				? 'logcrop.jpg'
-				: 'log.jpg';
-			
-			logMessage(`Loading demo ${type} image...`, 'info');
-			
-			fetch(demoUrl)
-				.then(response => {
-					if (!response.ok) {
-						throw new Error(`Failed to load demo image: ${response.status} ${response.statusText}`);
-					}
-					return response.blob();
-				})
-				.then(blob => {
-					const file = new File([blob], `demo-${type}.jpg`, { type: 'image/jpeg' });
-					loadImage(file, type); // Pass the correct type parameter
-				})
-				.catch(error => {
-					logMessage(`Error loading demo image: ${error.message}`, 'error');
-				});
-		}
-        
-        // Display the color card image and extract colors
-        function displayColorCardImage(img) {
-            const canvas = document.getElementById('colorcard-preview');
-            const ctx = canvas.getContext('2d');
-            
-            // Set canvas size
-            const maxWidth = 600;
-            const scale = Math.min(1, maxWidth / img.width);
-            canvas.width = img.width * scale;
-            canvas.height = img.height * scale;
-            
-            // Draw image
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            
-            // Show image info
-            const info = document.getElementById('colorcard-info');
-            info.textContent = `Image loaded: ${img.width}×${img.height} pixels`;
-            
-            // Extract colors from the image
-            extractColorsFromImage(img);
-        }
-		
-		// Initialize test image upload
-        function initializeTestImageUpload() {
-           const testFileInput = document.getElementById('test-upload');
-		   if (testFileInput) {
-			testFileInput.addEventListener('change', function(event) {
-			  const file = event.target.files[0];
-			  if (file) {
-				loadImage(file, 'test');
-				logMessage(`Test image loaded successfully`, 'success');
-			  }
-			});
-		  }
-
-		  document.getElementById('use-demo-test').addEventListener('click', function() {
-			loadDemoImage('test');
-		  });
-        }
-		
-        // Regression and rolloff helpers are implemented in lut-core.js.
-		function processColorTransformation() {
-			logMessage('Starting color transformation processing...', 'info');
-
-			if (state.capturedColors.length === 0) {
-				logMessage('No captured colors found. Please upload a color card image first.', 'error');
-				return;
-			}
-
-			if (state.referenceColors.length === 0) {
-				logMessage('No reference colors defined. Please set up your reference colors first.', 'error');
-				return;
-			}
-
-			if (state.capturedColors.length !== state.referenceColors.length) {
-				logMessage('Captured and reference color counts do not match. Recheck the grid configuration.', 'error');
-				return;
-			}
-
-			try {
-				updateProgress('process', 10);
-				state.transformationModels = LUTCore.buildTransformationModels(
-					state.capturedColors,
-					state.referenceColors,
-					{
-						polynomialDegree: state.polynomialDegree,
-						multivariateDegree: 2,
-						useWeightedRegression: state.useWeightedRegression
-					}
-				);
-				state.rolloffCurves = LUTCore.generateRolloffCurves();
-				updateProgress('process', 90);
-				logMessage('Basic and advanced color models calculated', 'info');
-
-				updateProgress('process', 100);
-				logMessage(`Color transformation processing complete!${state.useAdvancedProcessing ? ' (Advanced mode)' : ''}`, 'success');
-
-				document.getElementById('process-next').disabled = false;
-				invalidateGeneratedLUT();
-
-				if (state.testImage) {
-					processTestImage();
-				}
-			} catch (error) {
-				invalidateTransformation();
-				updateProgress('process', 0);
-				logMessage(`Error processing color transformation: ${error.message}`, 'error');
-			}
-		}
-		
-    </script>
+    <script src="app.js"></script>
 </body>
 </html>

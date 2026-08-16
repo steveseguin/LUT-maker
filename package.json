@@ -2,6 +2,11 @@
   "name": "lut-maker",
   "private": true,
   "scripts": {
-    "test": "node --test tests/*.test.js && python -B -m unittest check_lut_positions.py test_lut_edges.py"
+    "test": "node --test tests/*.test.js && python -B -m unittest check_lut_positions.py test_lut_edges.py",
+    "test:e2e": "playwright test",
+    "test:all": "npm test && npm run test:e2e"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
   }
 }

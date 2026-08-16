@@ -1,1 +1,4 @@
 P1002881.MOV
+node_modules/
+playwright-report/
+test-results/

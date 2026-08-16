@@ -6,7 +6,16 @@ Create custom PNG and CUBE LUTs to color correct your footage using a color refe
 
 **Try the new web-based LUT Maker**: [https://steveseguin.github.io/LUT-maker/](https://steveseguin.github.io/LUT-maker/)
 
-Our new browser-based tool lets you generate custom LUTs without any software installation or Python knowledge. Simply upload a photo of your color reference card and create professional color transformations directly in your browser!
+The browser tool generates LUTs without an installation or Python knowledge. Upload a photo of a color reference card, fit the correction locally in your browser, preview it, and export an OBS-compatible PNG or standard CUBE file.
+
+Browser features include:
+
+- Demo 3×3, SpyderCHECKR 24, and SpyderCHECKR 48 presets, plus importable/exportable JSON templates
+- Notebook-compatible color sampling and regression defaults
+- Optional manual perspective alignment, robust sampling, weighted regression, and QR least-squares fitting
+- Basic-versus-advanced calibration quality metrics with per-patch ΔE76 values
+- Background processing for responsive image previews and LUT exports
+- Common 17, 32, 33, 64, and 65-point CUBE sizes with title and domain metadata
 
 [![Walk Thru video](http://img.youtube.com/vi/pu9IpbfckDo/0.jpg)](https://www.youtube.com/watch?v=pu9IpbfckDo "Walk thru")
 
@@ -57,11 +66,22 @@ I created a version that's set up for the Datacolor Spyder Checkr color card:
 
 ## Testing
 
-The browser's color fitting, rolloff curves, PNG layout, and CUBE precision have automated parity tests against the notebook behavior. Run them with:
+The browser's color fitting, optional QR solver, perspective mapping, robust sampling, quality metrics, rolloff curves, PNG layout, and CUBE precision have automated tests. The default path retains parity checks against the notebook behavior.
+
+Run the unit and notebook-parity tests with:
 
 ```bash
 npm test
 ```
+
+Run the browser workflow tests with:
+
+```bash
+npx playwright install chromium
+npm run test:e2e
+```
+
+Or run everything with `npm run test:all`.
 
 **Note:** I'm using the main 24-color card found in the SCK100 48-color dual card pack. There's another 24-color card version that has the colors in a different arrangement; you'll need to move the values around to match your card if that's the case. (I bought mine as a 'replacement card' pack, which doesn't come with the case, but it's half the price. I don't use it often enough to justify needing a case and the added cost.)
 

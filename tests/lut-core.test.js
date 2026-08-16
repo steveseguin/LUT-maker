@@ -97,6 +97,17 @@ test('unweighted demo coefficients match the NumPy notebook', () => {
     ], 1e-8, 'advanced red');
 });
 
+test('model fitting rejects malformed RGB samples before regression', () => {
+    assert.throws(
+        () => LUTCore.buildTransformationModels([[0, 0, Number.NaN]], [[0, 0, 0]]),
+        /Captured colors must contain finite RGB values/
+    );
+    assert.throws(
+        () => LUTCore.buildTransformationModels([[0, 0, 0]], [[0, 0, 300]]),
+        /Reference colors must contain finite RGB values/
+    );
+});
+
 test('weighted demo coefficients match both notebook weighting stages', () => {
     const models = LUTCore.buildTransformationModels(capturedDemoColors, referenceDemoColors, {
         polynomialDegree: 1,
@@ -111,6 +122,32 @@ test('weighted demo coefficients match both notebook weighting stages', () => {
         -209.13990636, -0.017736697839, -0.000489012275, 0.000000952713495,
         3.1717935427, 0.000012127766128, 0.000005632983213, 0.000000058927664
     ], 1e-7, 'weighted advanced red');
+});
+
+test('opt-in QR solver agrees with the notebook solver on a well-conditioned chart', () => {
+    const notebookModels = LUTCore.buildTransformationModels(capturedDemoColors, referenceDemoColors, {
+        polynomialDegree: 1,
+        multivariateDegree: 2,
+        useWeightedRegression: true,
+        regressionSolver: 'notebook'
+    });
+    const qrModels = LUTCore.buildTransformationModels(capturedDemoColors, referenceDemoColors, {
+        polynomialDegree: 1,
+        multivariateDegree: 2,
+        useWeightedRegression: true,
+        regressionSolver: 'qr'
+    });
+
+    assert.equal(qrModels.metadata.regressionSolver, 'qr');
+    for (const channel of ['red', 'green', 'blue']) {
+        assertClose(qrModels.basic[channel], notebookModels.basic[channel], 1e-7, `QR basic ${channel}`);
+        assertClose(
+            qrModels.multivariate[channel].coefficients,
+            notebookModels.multivariate[channel].coefficients,
+            1e-7,
+            `QR advanced ${channel}`
+        );
+    }
 });
 
 test('degree-two basic fitting matches NumPy at the notebook maximum', () => {
@@ -151,6 +188,75 @@ test('identity calibration remains identity in basic and advanced modes', () => 
             assertClose(transformed, color, 1e-8, `identity ${useAdvancedProcessing ? 'advanced' : 'basic'}`);
         }
     }
+});
+
+test('quality report is effectively perfect for an identity calibration', () => {
+    const colors = [
+        [0, 0, 0], [255, 0, 0], [0, 255, 0], [0, 0, 255],
+        [255, 255, 0], [255, 0, 255], [0, 255, 255], [255, 255, 255],
+        [64, 96, 128], [192, 160, 32]
+    ];
+    const metrics = LUTCore.evaluateTransformationModels(colors, colors, identityModels());
+
+    assert.ok(metrics.basic.meanDeltaE < 1e-10);
+    assert.ok(metrics.advanced.meanDeltaE < 1e-10);
+    assert.equal(metrics.basic.clippedPercent, 0);
+    assert.equal(metrics.basic.swatches.length, colors.length);
+});
+
+test('sRGB-to-Lab conversion matches standard D65 reference values', () => {
+    assertClose(LUTCore.rgbToLab([255, 0, 0]), [53.2408, 80.0925, 67.2032], 0.001, 'red Lab');
+    assert.ok(Math.abs(LUTCore.deltaE76([0, 0, 0], [255, 255, 255]) - 100) < 0.001);
+});
+
+test('perspective alignment maps every unit-square corner and rejects folded grids', () => {
+    const corners = [[0.1, 0.2], [0.9, 0.1], [0.8, 0.9], [0.2, 0.8]];
+    const homography = LUTCore.calculateUnitSquareHomography(corners);
+    const unitCorners = [[0, 0], [1, 0], [1, 1], [0, 1]];
+
+    unitCorners.forEach((point, index) => {
+        assertClose(LUTCore.mapUnitSquarePoint(homography, ...point), corners[index], 1e-12, `corner ${index}`);
+    });
+    assert.throws(
+        () => LUTCore.calculateUnitSquareHomography([[0, 0], [1, 1], [1, 0], [0, 1]]),
+        /convex quadrilateral/
+    );
+});
+
+test('grid extraction supports notebook-compatible and opt-in robust sampling', () => {
+    const width = 8;
+    const height = 8;
+    const data = new Uint8ClampedArray(width * height * 4);
+    const expected = [[20, 30, 40], [80, 90, 100], [140, 150, 160], [200, 210, 220]];
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const cell = Math.floor(y / 4) * 2 + Math.floor(x / 4);
+            const offset = (y * width + x) * 4;
+            data.set([...expected[cell], 255], offset);
+        }
+    }
+    // One bright outlier in the first patch should be ignored by the robust mode.
+    data.set([255, 255, 255, 255], 0);
+    const imageData = { data, width, height };
+    const baseOptions = { rows: 2, columns: 2, borderPercentage: 0 };
+
+    assert.deepEqual(
+        LUTCore.extractGridColors(imageData, { ...baseOptions, method: 'histogram' }),
+        expected
+    );
+    assert.deepEqual(
+        LUTCore.extractGridColors(imageData, { ...baseOptions, method: 'cluster' }),
+        expected
+    );
+    assert.deepEqual(
+        LUTCore.extractGridColors(imageData, {
+            ...baseOptions,
+            method: 'median',
+            useAlignment: true,
+            corners: [[0, 0], [1, 0], [1, 1], [0, 1]]
+        }),
+        expected
+    );
 });
 
 test('one pipeline applies brightness, rolloff, gamma, and output quantization', () => {
@@ -206,6 +312,20 @@ test('CUBE export keeps floating-point precision and red-fastest ordering', () =
 
     const values = rows.flatMap(row => row.split(' ').map(Number));
     assert.ok(values.some(value => Math.abs(value * 255 - Math.round(value * 255)) > 0.001));
+});
+
+test('CUBE export includes sanitized title and standard domain metadata', () => {
+    const cube = LUTCore.generateCubeData(2, {
+        models: identityModels(),
+        useAdvancedProcessing: false,
+        applyRolloffCurves: false,
+        brightnessAdjustment: 0,
+        gammaValue: 1
+    }, undefined, { title: 'Camera "A"\nStudio' });
+
+    assert.match(cube, /TITLE "Camera 'A' Studio"/);
+    assert.match(cube, /DOMAIN_MIN 0\.000000 0\.000000 0\.000000/);
+    assert.match(cube, /DOMAIN_MAX 1\.000000 1\.000000 1\.000000/);
 });
 
 test('CUBE export honors the same rolloff and gamma settings as previews and PNGs', () => {
