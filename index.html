@@ -889,9 +889,10 @@ html {
                     
                     <div class="controls">
                         <div class="slider-container">
-                            <label for="polynomial-slider">Polynomial Degree:</label>
-                            <input type="range" id="polynomial-slider" min="1" max="3" value="1" class="slider">
+                            <label for="polynomial-slider">Basic Polynomial Degree:</label>
+                            <input type="range" id="polynomial-slider" min="1" max="2" value="1" class="slider">
                             <span id="polynomial-value" class="slider-value">1</span>
+                            <small>Degree 1 matches the notebook default and is the safest choice.</small>
                         </div>
 						<div class="slider-container">
 							<label for="advanced-processing-toggle">Use Advanced Color Processing:</label>
@@ -958,11 +959,11 @@ html {
                             <span id="brightness-value" class="slider-value">0</span>
                         </div>
                         <div class="slider-container">
-                            <label for="gamma-slider">Gamma Adjustment:</label>
+                            <label for="gamma-slider">Final Gamma Adjustment:</label>
                             <input type="range" id="gamma-slider" min="0.5" max="2.5" value="1" step="0.1" class="slider">
                             <span id="gamma-value" class="slider-value">1.0</span>
                         </div>
-                        <p style="font-size: 0.9em; color: #666; margin: 10px 0;">Adjustments apply automatically</p>
+                        <p style="font-size: 0.9em; color: #666; margin: 10px 0;">Adjustments apply automatically to both the preview and exported LUT.</p>
                     </div>
                     
                     <div class="controls">
@@ -1018,6 +1019,7 @@ html {
         </div>
     </div>
     
+    <script src="lut-core.js"></script>
     <script>
         // Main app state
         const state = {
@@ -1035,11 +1037,6 @@ html {
             gammaValue: 1.0,
             lutSize: 32,
             lutFormat: 'png',
-            transformationCoefficients: {
-                red: null,
-                green: null,
-                blue: null
-            },
             lutImage: null,
             cubeData: null,
 			useAdvancedProcessing: true,
@@ -1057,7 +1054,8 @@ html {
 					blue: null
 				}
 			},
-			gammaCurves: null
+			rolloffCurves: null,
+			isGeneratingLUT: false
         };
         
 		document.addEventListener('DOMContentLoaded', function() {
@@ -1107,6 +1105,12 @@ html {
             }
         }, 500); // Wait 500ms after user stops adjusting
 
+        const refreshColorExtraction = debounce(function() {
+            if (state.colorCardImage) {
+                extractColorsFromImage(state.colorCardImage);
+            }
+        }, 250);
+
         // Initialize sliders and inputs
         function initializeSliders() {
             // Rows slider
@@ -1116,6 +1120,10 @@ html {
                 state.rows = parseInt(this.value);
                 rowsValue.textContent = state.rows;
                 initializeReferenceGrid();
+                state.capturedColors = [];
+                updateCapturedColorsGrid();
+                invalidateTransformation();
+                refreshColorExtraction();
             });
             
             // Columns slider
@@ -1125,6 +1133,10 @@ html {
                 state.columns = parseInt(this.value);
                 columnsValue.textContent = state.columns;
                 initializeReferenceGrid();
+                state.capturedColors = [];
+                updateCapturedColorsGrid();
+                invalidateTransformation();
+                refreshColorExtraction();
             });
             
             // Cell border slider
@@ -1133,6 +1145,10 @@ html {
             borderSlider.addEventListener('input', function() {
                 state.cellBorderPercentage = parseInt(this.value);
                 borderValue.textContent = state.cellBorderPercentage + '%';
+                state.capturedColors = [];
+                updateCapturedColorsGrid();
+                invalidateTransformation();
+                refreshColorExtraction();
             });
             
             // Polynomial degree slider
@@ -1141,6 +1157,7 @@ html {
             polySlider.addEventListener('input', function() {
                 state.polynomialDegree = parseInt(this.value);
                 polyValue.textContent = state.polynomialDegree;
+                invalidateTransformation();
             });
             
             // Brightness slider with auto-apply
@@ -1149,6 +1166,7 @@ html {
             brightnessSlider.addEventListener('input', function() {
                 state.brightnessAdjustment = parseInt(this.value);
                 brightnessValue.textContent = state.brightnessAdjustment;
+                invalidateGeneratedLUT();
                 autoApplyAdjustments(); // Debounced update while dragging
             });
             brightnessSlider.addEventListener('change', function() {
@@ -1164,6 +1182,7 @@ html {
             gammaSlider.addEventListener('input', function() {
                 state.gammaValue = parseFloat(this.value);
                 gammaValue.textContent = state.gammaValue.toFixed(1);
+                invalidateGeneratedLUT();
                 autoApplyAdjustments(); // Debounced update while dragging
             });
             gammaSlider.addEventListener('change', function() {
@@ -1179,12 +1198,14 @@ html {
             lutSizeSlider.addEventListener('input', function() {
                 state.lutSize = parseInt(this.value);
                 lutSizeValue.textContent = state.lutSize;
+                invalidateGeneratedLUT();
             });
             
             // LUT format select
             const lutFormat = document.getElementById('lut-format');
             lutFormat.addEventListener('change', function() {
                 state.lutFormat = this.value;
+                invalidateGeneratedLUT();
             });
         }
         
@@ -1202,6 +1223,45 @@ html {
         function updateProgress(containerId, value) {
             const progressBar = document.getElementById(`${containerId}-progress-bar`);
             progressBar.style.width = `${value}%`;
+        }
+
+        function invalidateGeneratedLUT() {
+            state.cubeData = null;
+            state.lutImage = null;
+            document.getElementById('lut-download-container').style.display = 'none';
+            updateProgress('export', 0);
+        }
+
+        function invalidateTransformation() {
+            state.transformationModels = {
+                basic: { red: null, green: null, blue: null },
+                multivariate: { red: null, green: null, blue: null }
+            };
+            state.rolloffCurves = null;
+            document.getElementById('process-next').disabled = true;
+            updateProgress('process', 0);
+            invalidateGeneratedLUT();
+        }
+
+        function getTransformOptions(quantizeOutput = false) {
+            return {
+                models: state.transformationModels,
+                useAdvancedProcessing: state.useAdvancedProcessing,
+                applyRolloffCurves: state.applyRolloffCurves,
+                rolloffCurves: state.rolloffCurves,
+                brightnessAdjustment: state.brightnessAdjustment,
+                gammaValue: state.gammaValue,
+                quantizeOutput
+            };
+        }
+
+        function setExportBusy(isBusy) {
+            state.isGeneratingLUT = isBusy;
+            const generateButton = document.getElementById('generate-lut');
+            const downloadButton = document.getElementById('download-lut');
+            generateButton.disabled = isBusy;
+            generateButton.textContent = isBusy ? 'Generating…' : 'Generate LUT';
+            downloadButton.disabled = isBusy;
         }
         
         // RGB to Hex conversion
@@ -1395,6 +1455,8 @@ html {
         // Extract colors from the color card image
         function extractColorsFromImage(img) {
             logMessage('Extracting colors from image...', 'info');
+            document.getElementById('colorcard-next').disabled = true;
+            invalidateTransformation();
             
             // Create a temporary canvas to process the image
             const tempCanvas = document.createElement('canvas');
@@ -1408,17 +1470,20 @@ html {
             
             for (let row = 0; row < state.rows; row++) {
                 for (let col = 0; col < state.columns; col++) {
-                    // Calculate cell boundaries with border percentage
-                    const cellWidth = img.width / state.columns;
-                    const cellHeight = img.height / state.rows;
-                    
-                    const borderX = (state.cellBorderPercentage / 100) * cellWidth / 2;
-                    const borderY = (state.cellBorderPercentage / 100) * cellHeight / 2;
-                    
-                    const x = Math.floor(col * cellWidth + borderX);
-                    const y = Math.floor(row * cellHeight + borderY);
-                    const width = Math.floor(cellWidth - 2 * borderX);
-                    const height = Math.floor(cellHeight - 2 * borderY);
+                    // Match the notebook's independently-truncated start/end bounds.
+                    const { x, y, width, height } = LUTCore.calculateCellBounds(
+                        img.width,
+                        img.height,
+                        state.rows,
+                        state.columns,
+                        state.cellBorderPercentage,
+                        row,
+                        col
+                    );
+
+                    if (width <= 0 || height <= 0) {
+                        throw new Error('Color grid cells are too small for the selected border percentage');
+                    }
                     
                     // Get the cell data
                     const cellData = tempCtx.getImageData(x, y, width, height);
@@ -1503,6 +1568,8 @@ html {
                     // Update preview
                     const colorPreview = document.getElementById('selected-color-preview');
                     colorPreview.style.backgroundColor = rgbToHex(state.referenceColors[state.selectedCellIndex]);
+                    updateCapturedColorsGrid();
+                    invalidateTransformation();
                 }
             });
             
@@ -1510,6 +1577,8 @@ html {
             document.getElementById('reset-colors').addEventListener('click', function() {
                 state.referenceColors = Array(state.rows * state.columns).fill().map(() => [128, 128, 128]);
                 initializeReferenceGrid();
+                updateCapturedColorsGrid();
+                invalidateTransformation();
             });
             
             // Use example colors (color chart from the original code)
@@ -1531,6 +1600,8 @@ html {
                 }
                 
                 initializeReferenceGrid();
+                updateCapturedColorsGrid();
+                invalidateTransformation();
                 logMessage('Example colors loaded', 'success');
             });
         }
@@ -1607,6 +1678,10 @@ html {
 			  
 			  // Refresh the grid
 			  initializeReferenceGrid();
+			  state.capturedColors = [];
+			  updateCapturedColorsGrid();
+			  invalidateTransformation();
+			  refreshColorExtraction();
 			  
 			  logMessage('Template loaded from browser storage', 'success');
 			} else {
@@ -1638,6 +1713,10 @@ html {
 		  
 		  // Refresh the grid
 		  initializeReferenceGrid();
+		  state.capturedColors = [];
+		  updateCapturedColorsGrid();
+		  invalidateTransformation();
+		  refreshColorExtraction();
 		  
 		  logMessage(`Applied "${preset.name}" color preset`, 'success');
 		}
@@ -1660,322 +1739,49 @@ html {
 		}
 		
         
-        // Process the color transformation
-        function processColorTransformation() {
-            logMessage('Starting color transformation processing...', 'info');
-            
-            if (state.capturedColors.length === 0) {
-                logMessage('No captured colors found. Please upload a color card image first.', 'error');
-                return;
-            }
-            
-            if (state.referenceColors.length === 0) {
-                logMessage('No reference colors defined. Please set up your reference colors first.', 'error');
-                return;
-            }
-            
-            // Polynomial regression for each channel (R, G, B)
-            try {
-                // Process red channel
-                updateProgress('process', 10);
-                state.transformationCoefficients.red = polynomialRegression(
-                    state.capturedColors.map(color => color[0]),
-                    state.referenceColors.map(color => color[0]),
-                    state.polynomialDegree
-                );
-                logMessage('Red channel transformation calculated', 'info');
-                
-                // Process green channel
-                updateProgress('process', 40);
-                state.transformationCoefficients.green = polynomialRegression(
-                    state.capturedColors.map(color => color[1]),
-                    state.referenceColors.map(color => color[1]),
-                    state.polynomialDegree
-                );
-                logMessage('Green channel transformation calculated', 'info');
-                
-                // Process blue channel
-                updateProgress('process', 70);
-                state.transformationCoefficients.blue = polynomialRegression(
-                    state.capturedColors.map(color => color[2]),
-                    state.referenceColors.map(color => color[2]),
-                    state.polynomialDegree
-                );
-                logMessage('Blue channel transformation calculated', 'info');
-                
-                updateProgress('process', 100);
-                logMessage('Color transformation processing complete!', 'success');
-                
-                // Enable next step
-                document.getElementById('process-next').disabled = false;
-                
-                // If a test image is already loaded, process it with the new coefficients
-                if (state.testImage) {
-                    processTestImage();
-                }
-            } catch (error) {
-                logMessage(`Error processing color transformation: ${error}`, 'error');
-            }
-        }
-        
-        // Calculate weights for regression (prioritizes neutrals, reduces outliers)
-        function calculateRegressionWeights(x, y) {
-            const n = x.length;
-            const weights = new Array(n).fill(1.0);
-            
-            if (!state.useWeightedRegression) {
-                return weights; // All weights = 1 for standard regression
-            }
-            
-            // Prioritize neutral colors (where R≈G≈B)
-            for (let i = 0; i < n; i++) {
-                // Assuming x and y are single channel values from RGB triplets
-                // We need to check the full color context from state.capturedColors
-                if (state.capturedColors && state.capturedColors[i]) {
-                    const [r, g, b] = state.capturedColors[i];
-                    const maxDiff = Math.max(Math.abs(r-g), Math.abs(g-b), Math.abs(r-b));
-                    
-                    // Colors are neutral if RGB channels are similar
-                    if (maxDiff < 20) {
-                        weights[i] = 2.0; // Double weight for neutrals
-                    }
-                }
-            }
-            
-            // Reduce outlier influence using robust regression
-            // Calculate residuals from initial fit
-            const initialCoeffs = polynomialRegressionUnweighted(x, y, 1);
-            const residuals = new Array(n);
-            for (let i = 0; i < n; i++) {
-                const predicted = initialCoeffs[0] + initialCoeffs[1] * x[i];
-                residuals[i] = Math.abs(y[i] - predicted);
-            }
-            
-            // Use Huber weighting - reduce weight for large residuals
-            const medianResidual = median(residuals);
-            const threshold = medianResidual * 1.5;
-            
-            for (let i = 0; i < n; i++) {
-                if (residuals[i] > threshold) {
-                    weights[i] *= threshold / residuals[i];
-                }
-            }
-            
-            return weights;
-        }
-        
-        // Helper function to calculate median
-        function median(arr) {
-            const sorted = [...arr].sort((a, b) => a - b);
-            const mid = Math.floor(sorted.length / 2);
-            return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-        }
-        
-        // Unweighted polynomial regression (for initial fit)
-        function polynomialRegressionUnweighted(x, y, degree) {
-            const n = x.length;
-            const coefficients = new Array(degree + 1).fill(0);
-            
-            if (degree === 1) {
-                let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-                
-                for (let i = 0; i < n; i++) {
-                    sumX += x[i];
-                    sumY += y[i];
-                    sumXY += x[i] * y[i];
-                    sumX2 += x[i] * x[i];
-                }
-                
-                const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-                const intercept = (sumY - slope * sumX) / n;
-                
-                coefficients[0] = intercept;
-                coefficients[1] = slope;
-            }
-            
-            return coefficients;
-        }
-        
-        // Polynomial regression function with optional weighting
-        function polynomialRegression(x, y, degree) {
-            if (x.length !== y.length) {
-                throw new Error('Input arrays must have the same length');
-            }
-            
-            const n = x.length;
-            const coefficients = new Array(degree + 1).fill(0);
-            
-            // Get weights if weighted regression is enabled
-            const weights = calculateRegressionWeights(x, y);
-            
-            // For simple linear regression (degree 1)
-            if (degree === 1) {
-                let sumW = 0, sumWX = 0, sumWY = 0, sumWXY = 0, sumWX2 = 0;
-                
-                for (let i = 0; i < n; i++) {
-                    const w = weights[i];
-                    sumW += w;
-                    sumWX += w * x[i];
-                    sumWY += w * y[i];
-                    sumWXY += w * x[i] * y[i];
-                    sumWX2 += w * x[i] * x[i];
-                }
-                
-                const slope = (sumW * sumWXY - sumWX * sumWY) / (sumW * sumWX2 - sumWX * sumWX);
-                const intercept = (sumWY - slope * sumWX) / sumW;
-                
-                coefficients[0] = intercept;
-                coefficients[1] = slope;
-            } else {
-                // For higher degree polynomials we need to solve a system of linear equations
-                // Using normal equations: (X^T * X) * beta = X^T * y
-                
-                // Create design matrix X
-                const X = [];
-                for (let i = 0; i < n; i++) {
-                    const row = [];
-                    for (let j = 0; j <= degree; j++) {
-                        row.push(Math.pow(x[i], j));
-                    }
-                    X.push(row);
-                }
-                
-                // Calculate X^T * X
-                const XtX = [];
-                for (let i = 0; i <= degree; i++) {
-                    XtX[i] = [];
-                    for (let j = 0; j <= degree; j++) {
-                        let sum = 0;
-                        for (let k = 0; k < n; k++) {
-                            sum += X[k][i] * X[k][j];
-                        }
-                        XtX[i][j] = sum;
-                    }
-                }
-                
-                // Calculate X^T * y
-                const Xty = [];
-                for (let i = 0; i <= degree; i++) {
-                    let sum = 0;
-                    for (let k = 0; k < n; k++) {
-                        sum += X[k][i] * y[k];
-                    }
-                    Xty[i] = sum;
-                }
-                
-                // Solve system of linear equations using Gaussian elimination
-                // Augmented matrix [XtX|Xty]
-                const augmentedMatrix = [];
-                for (let i = 0; i <= degree; i++) {
-                    augmentedMatrix[i] = [...XtX[i], Xty[i]];
-                }
-                
-                // Gaussian elimination
-                for (let i = 0; i <= degree; i++) {
-                    // Find pivot
-                    let maxRow = i;
-                    for (let j = i + 1; j <= degree; j++) {
-                        if (Math.abs(augmentedMatrix[j][i]) > Math.abs(augmentedMatrix[maxRow][i])) {
-                            maxRow = j;
-                        }
-                    }
-                    
-                    // Swap rows
-                    if (maxRow !== i) {
-                        [augmentedMatrix[i], augmentedMatrix[maxRow]] = [augmentedMatrix[maxRow], augmentedMatrix[i]];
-                    }
-                    
-                    // Eliminate below
-                    for (let j = i + 1; j <= degree; j++) {
-                        const factor = augmentedMatrix[j][i] / augmentedMatrix[i][i];
-                        for (let k = i; k <= degree + 1; k++) {
-                            augmentedMatrix[j][k] -= factor * augmentedMatrix[i][k];
-                        }
-                    }
-                }
-                
-                // Back substitution
-                for (let i = degree; i >= 0; i--) {
-                    let sum = 0;
-                    for (let j = i + 1; j <= degree; j++) {
-                        sum += augmentedMatrix[i][j] * coefficients[j];
-                    }
-                    coefficients[i] = (augmentedMatrix[i][degree + 1] - sum) / augmentedMatrix[i][i];
-                }
-            }
-            
-            return coefficients;
-        }
-        
-        // Apply polynomial transformation to a value
-        function applyPolynomial(value, coefficients) {
-            let result = 0;
-            for (let i = 0; i < coefficients.length; i++) {
-                result += coefficients[i] * Math.pow(value, i);
-            }
-            return result;
-        }
-        
+        // Color-model fitting is implemented in lut-core.js.
         // Process the test image with the current transformation
         function processTestImage() {
-            if (!state.testImage || !state.transformationCoefficients.red) {
+            if (!state.testImage || !state.transformationModels.basic.red) {
                 return;
             }
             
             logMessage('Processing test image...', 'info');
-            
-            // Create temporary canvas for processing
-            const tempCanvas = document.createElement('canvas');
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCanvas.width = state.testImage.width;
-            tempCanvas.height = state.testImage.height;
-            tempCtx.drawImage(state.testImage, 0, 0);
-            
-            // Get image data
-            const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-            const data = imageData.data;
-            
-            // Create gamma curves
-            const gammaValue = state.gammaValue;
-            const gammaLookup = new Array(256);
-            for (let i = 0; i < 256; i++) {
-                gammaLookup[i] = Math.min(255, Math.max(0, Math.pow(i / 255, 1 / gammaValue) * 255));
+
+            try {
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCanvas.width = state.testImage.width;
+                tempCanvas.height = state.testImage.height;
+                tempCtx.drawImage(state.testImage, 0, 0);
+
+                const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+                const data = imageData.data;
+                const transformOptions = getTransformOptions(true);
+
+                for (let index = 0; index < data.length; index += 4) {
+                    const [r, g, b] = LUTCore.transformRgb(
+                        data[index],
+                        data[index + 1],
+                        data[index + 2],
+                        transformOptions
+                    );
+                    data[index] = r;
+                    data[index + 1] = g;
+                    data[index + 2] = b;
+                }
+
+                tempCtx.putImageData(imageData, 0, 0);
+
+                const processedCanvas = document.getElementById('test-processed');
+                const processedCtx = processedCanvas.getContext('2d');
+                processedCtx.clearRect(0, 0, processedCanvas.width, processedCanvas.height);
+                processedCtx.drawImage(tempCanvas, 0, 0, processedCanvas.width, processedCanvas.height);
+
+                logMessage('Test image processing complete', 'success');
+            } catch (error) {
+                logMessage(`Test image processing failed: ${error.message}`, 'error');
             }
-            
-            // Process each pixel
-            for (let i = 0; i < data.length; i += 4) {
-                // Apply color transformation
-                let r = applyPolynomial(data[i], state.transformationCoefficients.red);
-                let g = applyPolynomial(data[i + 1], state.transformationCoefficients.green);
-                let b = applyPolynomial(data[i + 2], state.transformationCoefficients.blue);
-                
-                // Apply brightness adjustment
-                r += state.brightnessAdjustment;
-                g += state.brightnessAdjustment;
-                b += state.brightnessAdjustment;
-                
-                // Apply gamma correction
-                r = gammaLookup[Math.min(255, Math.max(0, Math.round(r)))];
-                g = gammaLookup[Math.min(255, Math.max(0, Math.round(g)))];
-                b = gammaLookup[Math.min(255, Math.max(0, Math.round(b)))];
-                
-                // Set the data
-                data[i] = r;
-                data[i + 1] = g;
-                data[i + 2] = b;
-            }
-            
-            // Put the image data back
-            tempCtx.putImageData(imageData, 0, 0);
-            
-            // Display the processed image
-            const processedCanvas = document.getElementById('test-processed');
-            const processedCtx = processedCanvas.getContext('2d');
-            
-            processedCtx.clearRect(0, 0, processedCanvas.width, processedCanvas.height);
-            processedCtx.drawImage(tempCanvas, 0, 0, processedCanvas.width, processedCanvas.height);
-            
-            logMessage('Test image processing complete', 'success');
         }
         
         // Initialize export functionality
@@ -1989,342 +1795,132 @@ html {
             });
         }
 		
-		function generateLUT() {
-			if (!state.transformationCoefficients.red) {
+		async function generateLUT() {
+			if (!state.transformationModels.basic.red) {
 				logMessage('No color transformation available. Please process colors first.', 'error');
 				return;
 			}
+			if (state.isGeneratingLUT) {
+				return;
+			}
 
+			setExportBusy(true);
+			invalidateGeneratedLUT();
 			logMessage('Generating LUT...', 'info');
-			updateProgress('export', 0);
 
-			const lutCanvas = document.getElementById('lut-preview');
-			const lutCtx = lutCanvas.getContext('2d');
+			try {
+				// Let the busy state paint before a potentially large CUBE calculation.
+				await new Promise(resolve => requestAnimationFrame(resolve));
+				const lutCanvas = document.getElementById('lut-preview');
+				const lutCtx = lutCanvas.getContext('2d');
 
-			const useAdvancedProcessing = state.useAdvancedProcessing &&
-				state.transformationModels &&
-				state.transformationModels.multivariate &&
-				state.transformationModels.multivariate.red;
-
-			const gammaCurves = useAdvancedProcessing ? state.gammaCurves : null;
-
-			if (state.lutFormat === 'png') {
-				// For PNG, always generate at 512x512 for quality (64x64 will be offered on download)
-				generate2dPngLUT(lutCanvas, lutCtx, useAdvancedProcessing, gammaCurves);
-			} else if (state.lutFormat === 'cube') {
-				// For CUBE, use the user-selected size
-				generate3dCubeLUT(lutCanvas, lutCtx, useAdvancedProcessing, gammaCurves);
-			}
-
-			updateProgress('export', 100);
-			logMessage('LUT generation complete!', 'success');
-
-			document.getElementById('lut-download-container').style.display = 'block';
-		}
-
-		function applyTransformations(r, g, b, useAdvancedProcessing, gammaCurves) {
-			let newR, newG, newB;
-
-			if (useAdvancedProcessing) {
-				[newR, newG, newB] = processPixelAdvanced(r, g, b, state.transformationModels, state.brightnessAdjustment);
-			} else {
-				newR = safeApplyPolynomial(r, state.transformationCoefficients.red);
-				newG = safeApplyPolynomial(g, state.transformationCoefficients.green);
-				newB = safeApplyPolynomial(b, state.transformationCoefficients.blue);
-
-				newR += state.brightnessAdjustment;
-				newG += state.brightnessAdjustment;
-				newB += state.brightnessAdjustment;
-
-				const gammaValue = state.gammaValue || 1.0;
-				if (gammaValue !== 1.0) {
-					newR = safeGamma(newR, gammaValue);
-					newG = safeGamma(newG, gammaValue);
-					newB = safeGamma(newB, gammaValue);
+				if (state.lutFormat === 'png') {
+					await generate2dPngLUT(lutCanvas, lutCtx);
+					state.lutImage = true;
+				} else if (state.lutFormat === 'cube') {
+					generate3dCubeLUT(lutCanvas, lutCtx);
 				}
-			}
 
-			return [Math.min(255, Math.max(0, Math.round(newR))),
-				Math.min(255, Math.max(0, Math.round(newG))),
-				Math.min(255, Math.max(0, Math.round(newB)))];
+				updateProgress('export', 100);
+				logMessage('LUT generation complete!', 'success');
+				document.getElementById('lut-download-container').style.display = 'block';
+			} catch (error) {
+				invalidateGeneratedLUT();
+				logMessage(`LUT generation failed: ${error.message}`, 'error');
+			} finally {
+				setExportBusy(false);
+			}
 		}
 
-		function generate2dPngLUT(lutCanvas, lutCtx, useAdvancedProcessing, gammaCurves) {
-		  // Like the Python version, we'll load and modify the neutral LUT
-		  const lutSize = 512;
-		  lutCanvas.width = lutSize;
-		  lutCanvas.height = lutSize;
-		  
-		  
-		  // Load the neutral LUT image
-		  const img = new Image();
-		  img.onload = function() {
-			
-			// Draw the neutral LUT to the canvas
-			lutCtx.drawImage(img, 0, 0, lutSize, lutSize);
-			
-			// Get the image data to modify
-			const imageData = lutCtx.getImageData(0, 0, lutSize, lutSize);
+		function applyTransformations(r, g, b, quantizeOutput = true) {
+			return LUTCore.transformRgb(r, g, b, getTransformOptions(quantizeOutput));
+		}
+
+		function transformLutImageData(imageData) {
 			const data = imageData.data;
-			
-			
-			
-			// Apply transformations to each pixel
-			for (let i = 0; i < data.length; i += 4) {
-			  const r = data[i];
-			  const g = data[i + 1];
-			  const b = data[i + 2];
-			  
-			  
-			  let finalR = r, finalG = g, finalB = b;
-			  
-			  if (state.transformationCoefficients.red) {
-				// Use EITHER advanced processing OR basic polynomial, not both
-				if (useAdvancedProcessing && state.transformationModels && 
-					state.transformationModels.multivariate && 
-					state.transformationModels.multivariate.red) {
-				  // Use multivariate polynomial (like Python's applyLUT2)
-				  [finalR, finalG, finalB] = processPixelAdvanced(r, g, b, state.transformationModels, state.brightnessAdjustment);
-				} else {
-				  // Use basic polynomial transformation (like Python's applyLUT)
-				  finalR = safeApplyPolynomial(r, state.transformationCoefficients.red);
-				  finalG = safeApplyPolynomial(g, state.transformationCoefficients.green);
-				  finalB = safeApplyPolynomial(b, state.transformationCoefficients.blue);
-				  
-				  // Apply brightness adjustment
-				  finalR += state.brightnessAdjustment;
-				  finalG += state.brightnessAdjustment;
-				  finalB += state.brightnessAdjustment;
-				}
-				
-				// Apply rolloff curves if enabled (for extreme value preservation)
-				// This is separate from gamma correction (which is a power function)
-				if (state.applyRolloffCurves && gammaCurves && gammaCurves.highlight && gammaCurves.shadow) {
-					// Apply highlight gamma curve (Python: where > 225 and < 492)
-					if (finalR > 225 && finalR < 492) {
-					  const idx = Math.round(finalR - 225);
-					  if (idx >= 0 && idx < gammaCurves.highlight.length) {
-						finalR = gammaCurves.highlight[idx];
-					  }
-					} else if (finalR >= 492) {
-					  finalR = 255; // Clamp extreme highlights
-					}
-					
-					if (finalG > 225 && finalG < 492) {
-					  const idx = Math.round(finalG - 225);
-					  if (idx >= 0 && idx < gammaCurves.highlight.length) {
-						finalG = gammaCurves.highlight[idx];
-					  }
-					} else if (finalG >= 492) {
-					  finalG = 255;
-					}
-					
-					if (finalB > 225 && finalB < 492) {
-					  const idx = Math.round(finalB - 225);
-					  if (idx >= 0 && idx < gammaCurves.highlight.length) {
-						finalB = gammaCurves.highlight[idx];
-					  }
-					} else if (finalB >= 492) {
-					  finalB = 255;
-					}
-					
-					// Apply shadow gamma curve (Python: where <= 30 and > -461)
-					if (finalR <= 30 && finalR > -461) {
-					  const idx = Math.round(finalR + 461);
-					  if (idx >= 0 && idx < gammaCurves.shadow.length) {
-						finalR = gammaCurves.shadow[idx];
-					  }
-					} else if (finalR <= -461) {
-					  finalR = 0; // Clamp extreme shadows
-					}
-					
-					if (finalG <= 30 && finalG > -461) {
-					  const idx = Math.round(finalG + 461);
-					  if (idx >= 0 && idx < gammaCurves.shadow.length) {
-						finalG = gammaCurves.shadow[idx];
-					  }
-					} else if (finalG <= -461) {
-					  finalG = 0;
-					}
-					
-					if (finalB <= 30 && finalB > -461) {
-					  const idx = Math.round(finalB + 461);
-					  if (idx >= 0 && idx < gammaCurves.shadow.length) {
-						finalB = gammaCurves.shadow[idx];
-					  }
-					} else if (finalB <= -461) {
-					  finalB = 0;
-					}
-				}
-			  }
-			  
-			  
-			  // Clamp values to 0-255 (Python: lutimg[np.where(lutimg>255)]=255)
-			  data[i] = Math.min(255, Math.max(0, Math.round(finalR)));
-			  data[i + 1] = Math.min(255, Math.max(0, Math.round(finalG)));
-			  data[i + 2] = Math.min(255, Math.max(0, Math.round(finalB)));
-			  // Alpha stays at 255
+			const transformOptions = getTransformOptions(true);
+
+			for (let index = 0; index < data.length; index += 4) {
+				const [r, g, b] = LUTCore.transformRgb(
+					data[index],
+					data[index + 1],
+					data[index + 2],
+					transformOptions
+				);
+				data[index] = r;
+				data[index + 1] = g;
+				data[index + 2] = b;
+				data[index + 3] = 255;
 			}
-			
-			// Put the modified image data back
-			lutCtx.putImageData(imageData, 0, 0);
-			
-			logMessage('LUT transformation applied to neutral LUT', 'success');
-		  };
-		  
-		  img.onerror = function() {
-			logMessage('Failed to load neutral LUT, generating from scratch', 'warning');
-			// Fallback to generating from scratch
-			generateLUTFromScratch(lutCanvas, lutCtx, useAdvancedProcessing, gammaCurves);
-		  };
-		  
-		  // Try to load the neutral LUT
-		  img.src = 'neutral-lut.png';
-		}
-		
-		// Fallback function to generate LUT from scratch if neutral LUT fails to load
-		function generateLUTFromScratch(lutCanvas, lutCtx, useAdvancedProcessing, gammaCurves) {
-		  const lutSize = 512;
-		  const lutData = lutCtx.createImageData(lutSize, lutSize);
-		  const data = lutData.data;
-		  
-		  // For 512x512: 64 steps per channel, arranged as 8x8 grid of 64x64 blocks
-		  const steps = 64;
-		  const blockSize = 64;
-		  const blocksPerRow = 8;
-		  
-		  for (let y = 0; y < lutSize; y++) {
-			for (let x = 0; x < lutSize; x++) {
-			  // Calculate which block we're in (0-63)
-			  const blockX = Math.floor(x / blockSize);
-			  const blockY = Math.floor(y / blockSize);
-			  const blockIndex = blockY * blocksPerRow + blockX;
-			  
-			  // Position within the block (0-63)
-			  const localX = x % blockSize;
-			  const localY = y % blockSize;
-			  
-			  // Standard OBS Hald CLUT color mapping
-			  const blueStep = blockIndex;
-			  const redStep = localX;
-			  const greenStep = localY;
-			  
-			  // Convert steps to 0-255 range
-			  const r = Math.min(255, redStep * 4);
-			  const g = Math.min(255, greenStep * 4);
-			  const b = Math.min(255, blueStep * 4);
-			  
-			  // Apply transformations
-			  let finalR = r, finalG = g, finalB = b;
-			  
-			  if (state.transformationCoefficients.red) {
-				if (useAdvancedProcessing && gammaCurves) {
-				  [finalR, finalG, finalB] = processPixelAdvanced(r, g, b, state.transformationModels, state.brightnessAdjustment);
-				} else {
-				  finalR = safeApplyPolynomial(r, state.transformationCoefficients.red);
-				  finalG = safeApplyPolynomial(g, state.transformationCoefficients.green);
-				  finalB = safeApplyPolynomial(b, state.transformationCoefficients.blue);
-				  
-				  finalR += state.brightnessAdjustment;
-				  finalG += state.brightnessAdjustment;
-				  finalB += state.brightnessAdjustment;
-				}
-			  }
-			  
-			  // Set pixel data
-			  const index = (y * lutSize + x) * 4;
-			  data[index] = Math.min(255, Math.max(0, Math.round(finalR)));
-			  data[index + 1] = Math.min(255, Math.max(0, Math.round(finalG)));
-			  data[index + 2] = Math.min(255, Math.max(0, Math.round(finalB)));
-			  data[index + 3] = 255;
-			}
-		  }
-		  
-		  lutCtx.putImageData(lutData, 0, 0);
+
+			return imageData;
 		}
 
-		function generate3dCubeLUT(lutCanvas, lutCtx, useAdvancedProcessing, gammaCurves) {
+		function generate2dPngLUT(lutCanvas, lutCtx) {
+			const lutSize = 512;
+			lutCanvas.width = lutSize;
+			lutCanvas.height = lutSize;
+
+			return new Promise((resolve, reject) => {
+				const img = new Image();
+				img.onload = function() {
+					try {
+						lutCtx.drawImage(img, 0, 0, lutSize, lutSize);
+						const imageData = lutCtx.getImageData(0, 0, lutSize, lutSize);
+						lutCtx.putImageData(transformLutImageData(imageData), 0, 0);
+						logMessage('LUT transformation applied to neutral LUT', 'success');
+						resolve();
+					} catch (error) {
+						reject(error);
+					}
+				};
+
+				img.onerror = function() {
+					try {
+						logMessage('Neutral LUT could not be loaded; using the exact generated layout', 'warning');
+						generateLUTFromScratch(lutCanvas, lutCtx);
+						resolve();
+					} catch (error) {
+						reject(error);
+					}
+				};
+
+				img.src = 'neutral-lut.png';
+			});
+		}
+
+		function generateLUTFromScratch(lutCanvas, lutCtx) {
+			const lutSize = 512;
+			const lutData = lutCtx.createImageData(lutSize, lutSize);
+			const data = lutData.data;
+
+			for (let y = 0; y < lutSize; y++) {
+				for (let x = 0; x < lutSize; x++) {
+					const [r, g, b] = LUTCore.neutralLutRgbAt(x, y);
+					const index = (y * lutSize + x) * 4;
+					data[index] = r;
+					data[index + 1] = g;
+					data[index + 2] = b;
+					data[index + 3] = 255;
+				}
+			}
+
+			lutCtx.putImageData(transformLutImageData(lutData), 0, 0);
+		}
+
+		function generate3dCubeLUT(lutCanvas, lutCtx) {
 		  // Default to 33×33×33 grid (standard size for 3D LUTs) or use state.lutSize
 		  const size = state.lutSize || 33;
 		  
-		  // Generate CUBE data
-		  let cubeData = [];
-		  let header = `# CUBE LUT generated by WebLUT\n`;
-		  header += `LUT_3D_SIZE ${size}\n\n`;
+		  logMessage(`Generating ${size}×${size}×${size} CUBE LUT data...`, 'info');
 		  
-		  // Calculate total operations for progress updates
-		  const totalOps = size * size * size;
-		  let completedOps = 0;
-		  
-		  logMessage(`Generating ${size}x${size}x${size} CUBE LUT data...`, 'info');
-		  
-		  // Generate the 3D grid of color values
-		  for (let b = 0; b < size; b++) {
-			for (let g = 0; g < size; g++) {
-			  for (let r = 0; r < size; r++) {
-				// Calculate normalized RGB values (0-1)
-				const normalizedR = r / (size - 1);
-				const normalizedG = g / (size - 1);
-				const normalizedB = b / (size - 1);
-				
-				// Scale to 0-255 for processing
-				let rOut = normalizedR * 255;
-				let gOut = normalizedG * 255;
-				let bOut = normalizedB * 255;
-				
-				// Apply transformations
-				if (useAdvancedProcessing) {
-				  [rOut, gOut, bOut] = applyTransformations(rOut, gOut, bOut, useAdvancedProcessing, gammaCurves);
-				} else {
-				  rOut = safeApplyPolynomial(rOut, state.transformationCoefficients.red);
-				  gOut = safeApplyPolynomial(gOut, state.transformationCoefficients.green);
-				  bOut = safeApplyPolynomial(bOut, state.transformationCoefficients.blue);
-				  
-				  rOut += state.brightnessAdjustment;
-				  gOut += state.brightnessAdjustment;
-				  bOut += state.brightnessAdjustment;
-				  
-				  const gammaValue = state.gammaValue || 1.0;
-				  if (gammaValue !== 1.0) {
-					rOut = safeGamma(rOut, gammaValue);
-					gOut = safeGamma(gOut, gammaValue);
-					bOut = safeGamma(bOut, gammaValue);
-				  }
-				}
-				
-				// Clamp values 0-255
-				rOut = Math.min(255, Math.max(0, rOut));
-				gOut = Math.min(255, Math.max(0, gOut));
-				bOut = Math.min(255, Math.max(0, bOut));
-				
-				// Convert back to 0-1 range for CUBE format
-				rOut = rOut / 255;
-				gOut = gOut / 255;
-				bOut = bOut / 255;
-				
-				// Format with proper precision and add to data array
-				cubeData.push(`${rOut.toFixed(6)} ${gOut.toFixed(6)} ${bOut.toFixed(6)}`);
-				
-				// Update progress every so often
-				completedOps++;
-				if (completedOps % Math.floor(totalOps / 10) === 0) {
-				  const progress = Math.floor((completedOps / totalOps) * 100);
-				  updateProgress('export', progress);
-				}
-			  }
-			}
-		  }
-		  
-		  // Combine header and data
-		  const fullCubeData = header + cubeData.join('\n');
-		  
-		  // Store CUBE data in state for download
-		  state.cubeData = fullCubeData;
-		  
-		  // Generate a visual preview for the CUBE LUT
+		  state.cubeData = LUTCore.generateCubeData(
+			size,
+			getTransformOptions(false),
+			progress => updateProgress('export', progress)
+		  );
 		  generateCubePreview(lutCanvas, lutCtx);
-		  
-		  return fullCubeData;
+		  return state.cubeData;
 		}
 		
 		// Generate a visual representation for the CUBE LUT preview
@@ -2414,9 +2010,7 @@ html {
 			lutCtx.fillRect(x, y, 15, 15);
 			
 			// Apply transformation
-			const transformedColor = applyTransformations(r, g, b, 
-														state.useAdvancedProcessing, 
-														state.gammaCurves);
+			const transformedColor = applyTransformations(r, g, b, true);
 			
 			// Ensure valid RGB values
 			const [tR, tG, tB] = transformedColor.map(v => Math.min(255, Math.max(0, Math.round(v))));
@@ -2432,82 +2026,13 @@ html {
 		  }
 		}
 		
-		// Safe version of applyPolynomial that prevents NaN values
-		function safeApplyPolynomial(value, coefficients) {
-			if (!coefficients || !Array.isArray(coefficients)) {
-				return value;
-			}
-			
-			let result = 0;
-			for (let i = 0; i < coefficients.length; i++) {
-				const coef = coefficients[i] || 0;
-				const term = coef * Math.pow(value, i);
-				result += Number.isFinite(term) ? term : 0;
-			}
-			
-			return Number.isFinite(result) ? result : value;
-		}
-
-		// Safe version of gamma calculation to prevent NaN
-		function safeGamma(value, gamma, isNormalized = false) {
-			if (!Number.isFinite(value) || value < 0) return 0;
-			if (value === 0) return 0;
-			
-			let normalizedValue, result;
-			
-			if (isNormalized) {
-				normalizedValue = Math.max(0, Math.min(1, value));
-				result = Math.pow(normalizedValue, 1 / (gamma || 1.0));
-				// Result is already normalized
-			} else {
-				normalizedValue = Math.max(0, Math.min(1, value / 255));
-				result = Math.pow(normalizedValue, 1 / (gamma || 1.0)) * 255;
-			}
-			
-			return Number.isFinite(result) ? result : value;
-		}
-		
-		function processPixelAdvanced(r, g, b, models, brightnessAdjustment) {
-			// Check if we have multivariate models for each channel
-			const hasRedModel = models.multivariate && models.multivariate.red;
-			const hasGreenModel = models.multivariate && models.multivariate.green;  
-			const hasBlueModel = models.multivariate && models.multivariate.blue;
-			
-			// Apply transformation based on available models
-			let newR = hasRedModel ? 
-				applyPoly3d(r, g, b, models.multivariate.red) : 
-				safeApplyPolynomial(r, models.basic.red);
-			
-			let newG = hasGreenModel ? 
-				applyPoly3d(r, g, b, models.multivariate.green) : 
-				safeApplyPolynomial(g, models.basic.green);
-			
-			let newB = hasBlueModel ? 
-				applyPoly3d(r, g, b, models.multivariate.blue) : 
-				safeApplyPolynomial(b, models.basic.blue);
-			
-			// Apply brightness adjustment
-			newR += brightnessAdjustment;
-			newG += brightnessAdjustment;
-			newB += brightnessAdjustment;
-			
-			// Return values without clamping - gamma curves will be applied later
-			return [newR, newG, newB];
-		}
-
-		// Safe version of gamma calculation for normalized values (0-1)
-		function safeGammaValue(value, gamma) {
-			if (!Number.isFinite(value) || value < 0) return 0;
-			if (value === 0) return 0;
-			
-			const normalizedValue = Math.max(0, Math.min(1, value));
-			const result = Math.pow(normalizedValue, 1 / (gamma || 1.0));
-			
-			return Number.isFinite(result) ? result : value;
-		}
-        
         function downloadLUT() {
-		  if (state.lutFormat === 'png') {
+		  if (state.isGeneratingLUT) {
+			logMessage('Please wait for LUT generation to finish', 'warning');
+			return;
+		  }
+
+		  if (state.lutFormat === 'png' && state.lutImage) {
 			const lutCanvas = document.getElementById('lut-preview');
 			
 			// Download the LUT as PNG
@@ -2542,17 +2067,26 @@ html {
         function initializeEventListeners() {
             document.getElementById('advanced-processing-toggle').addEventListener('change', function() {
 				state.useAdvancedProcessing = this.checked;
+				invalidateGeneratedLUT();
+				if (state.testImage) {
+					processTestImage();
+				}
 				logMessage(`Advanced processing ${this.checked ? 'enabled' : 'disabled'}`, 'info');
 			});
 			
 			document.getElementById('rolloff-curves-toggle').addEventListener('change', function() {
 				state.applyRolloffCurves = this.checked;
+				invalidateGeneratedLUT();
+				if (state.testImage) {
+					processTestImage();
+				}
 				logMessage(`Shadow/highlight rolloff ${this.checked ? 'enabled' : 'disabled'}`, 'info');
 			});
 			
 			document.getElementById('weighted-regression-toggle').addEventListener('change', function() {
 				state.useWeightedRegression = this.checked;
-				logMessage(`Weighted regression ${this.checked ? 'enabled' : 'disabled'}`, 'info');
+				invalidateTransformation();
+				logMessage(`Weighted regression ${this.checked ? 'enabled' : 'disabled'}; process the color transformation again`, 'info');
 			});
         }
 		
@@ -2583,11 +2117,6 @@ html {
             processTestImage();
         }
         
-		// Demo image button
-		document.getElementById('use-demo-image').addEventListener('click', function() {
-			loadDemoImage('colorcard');
-		});
-			
         // Load a demo image
 		function loadDemoImage(type) {
 			const demoUrl = type === 'colorcard' 
@@ -2634,12 +2163,7 @@ html {
             extractColorsFromImage(img);
         }
 		
-		// Demo image button
-		document.getElementById('use-demo-test').addEventListener('click', function() {
-			loadDemoImage('test');
-		});
-			
-		 // Initialize test image upload
+		// Initialize test image upload
         function initializeTestImageUpload() {
            const testFileInput = document.getElementById('test-upload');
 		   if (testFileInput) {
@@ -2651,480 +2175,62 @@ html {
 			  }
 			});
 		  }
+
+		  document.getElementById('use-demo-test').addEventListener('click', function() {
+			loadDemoImage('test');
+		  });
         }
 		
-		// Advanced multivariate polynomial regression
-		function polyfit3d(r, g, b, targetValues, degree) {
-			// Create degrees for multivariate polynomial
-			const degrees = [];
-			for (let i = 0; i < degree; i++) {
-				for (let j = 0; j < degree; j++) {
-					for (let k = 0; k < degree; k++) {
-						degrees.push([i, j, k]);
-					}
-				}
-			}
-			
-			// Work directly with RGB values (0-255) like Python implementation
-			// NO normalization - critical for matching Python behavior
-			
-			// Create design matrix
-			const matrix = [];
-			const n = r.length;
-			
-			for (let i = 0; i < n; i++) {
-				const row = [];
-				for (const [di, dj, dk] of degrees) {
-					// Calculate r^i * g^j * b^k using raw RGB values (0-255)
-					row.push(
-						Math.pow(r[i], di) * 
-						Math.pow(g[i], dj) * 
-						Math.pow(b[i], dk)
-					);
-				}
-				matrix.push(row);
-			}
-			
-			// Calculate weights for weighted regression if enabled
-			const weights = state.useWeightedRegression ? 
-				calculateRegressionWeights(r, targetValues) : 
-				new Array(n).fill(1.0);
-			
-			// Solve using weighted normal equations (X^T * W * X)^-1 * X^T * W * y
-			// First calculate X^T * W * X
-			const XtWX = [];
-			const m = degrees.length;
-			
-			for (let i = 0; i < m; i++) {
-				XtWX.push(new Array(m).fill(0));
-			}
-			
-			for (let i = 0; i < m; i++) {
-				for (let j = 0; j < m; j++) {
-					for (let k = 0; k < n; k++) {
-						XtWX[i][j] += weights[k] * matrix[k][i] * matrix[k][j];
-					}
-				}
-			}
-			
-			// Calculate X^T * W * y
-			const XtWy = new Array(m).fill(0);
-			for (let i = 0; i < m; i++) {
-				for (let k = 0; k < n; k++) {
-					XtWy[i] += weights[k] * matrix[k][i] * targetValues[k];
-				}
-			}
-			
-			// Create augmented matrix [XtWX|XtWy]
-			const augmentedMatrix = [];
-			for (let i = 0; i < m; i++) {
-				augmentedMatrix.push([...XtWX[i], XtWy[i]]);
-			}
-			
-			// Gaussian elimination
-			for (let i = 0; i < m; i++) {
-				// Find pivot
-				let maxRow = i;
-				for (let j = i + 1; j < m; j++) {
-					if (Math.abs(augmentedMatrix[j][i]) > Math.abs(augmentedMatrix[maxRow][i])) {
-						maxRow = j;
-					}
-				}
-				
-				// Swap rows
-				if (maxRow !== i) {
-					[augmentedMatrix[i], augmentedMatrix[maxRow]] = [augmentedMatrix[maxRow], augmentedMatrix[i]];
-				}
-				
-				// Eliminate below
-				for (let j = i + 1; j < m; j++) {
-					if (augmentedMatrix[i][i] === 0) continue; // Skip if pivot is zero
-					
-					const factor = augmentedMatrix[j][i] / augmentedMatrix[i][i];
-					for (let k = i; k <= m; k++) {
-						augmentedMatrix[j][k] -= factor * augmentedMatrix[i][k];
-					}
-				}
-			}
-			
-			// Back substitution
-			const coefficients = new Array(m).fill(0);
-			for (let i = m - 1; i >= 0; i--) {
-				if (augmentedMatrix[i][i] === 0) continue; // Skip if diagonal element is zero
-				
-				let sum = 0;
-				for (let j = i + 1; j < m; j++) {
-					sum += augmentedMatrix[i][j] * coefficients[j];
-				}
-				coefficients[i] = (augmentedMatrix[i][m] - sum) / augmentedMatrix[i][i];
-			}
-			
-			return { coefficients, degrees }; // No normalization params - work with raw RGB
-}
-
-		function applyPoly3d(r, g, b, model) {
-			if (!model || !model.coefficients || !model.degrees) {
-				return r; // Return input value as fallback
-			}
-			
-			const { coefficients, degrees } = model;
-			
-			// Work directly with RGB values (0-255) - NO normalization
-			// This matches the Python implementation
-			
-			let result = 0;
-			
-			for (let i = 0; i < coefficients.length; i++) {
-				if (i >= degrees.length) break;
-				
-				const [di, dj, dk] = degrees[i];
-				const coef = coefficients[i] || 0;
-				
-				// Calculate term using raw RGB values (0-255)
-				// Matching Python's poly3d implementation
-				let term = coef * Math.pow(r, di) * Math.pow(g, dj) * Math.pow(b, dk);
-				
-				if (isFinite(term)) {
-					result += term;
-				}
-			}
-			
-			return isFinite(result) ? result : r;
-		}
-
-		function generateGammaCurves() {
-			// Create highlight gamma curve (similar to Python LUT2)
-			const highlightCurve = new Array(256);
-			for (let i = 0; i < 256; i++) {
-				// For 225-255 range
-				if (i > 225) {
-					// Similar to original Python calculation
-					// Smoother curve - x is input (225-255), y is output
-					const x = i - 225;
-					const y = x + Math.pow(x / 30, 0.8) * 30;
-					highlightCurve[i] = Math.min(255, Math.max(0, Math.round(225 + y)));
-				} else {
-					highlightCurve[i] = i;
-				}
-			}
-			
-			// Create shadow gamma curve (similar to Python LUT1)
-			const shadowCurve = new Array(256);
-			for (let i = 0; i < 256; i++) {
-				// For 0-30 range
-				if (i < 30) {
-					// Smoother curve for shadows
-					const x = 30 - i;
-					const y = x - Math.pow(x / 30, 0.8) * 10;
-					shadowCurve[i] = Math.min(255, Math.max(0, Math.round(30 - y)));
-				} else {
-					shadowCurve[i] = i;
-				}
-			}
-			
-			return { highlightCurve, shadowCurve };
-		}
-		
+        // Regression and rolloff helpers are implemented in lut-core.js.
 		function processColorTransformation() {
 			logMessage('Starting color transformation processing...', 'info');
-			
+
 			if (state.capturedColors.length === 0) {
 				logMessage('No captured colors found. Please upload a color card image first.', 'error');
 				return;
 			}
-			
+
 			if (state.referenceColors.length === 0) {
 				logMessage('No reference colors defined. Please set up your reference colors first.', 'error');
 				return;
 			}
-			
+
+			if (state.capturedColors.length !== state.referenceColors.length) {
+				logMessage('Captured and reference color counts do not match. Recheck the grid configuration.', 'error');
+				return;
+			}
+
 			try {
-				// Update progress
 				updateProgress('process', 10);
-				
-				// Calculate basic polynomial regression models
-				state.transformationCoefficients.red = polynomialRegression(
-					state.capturedColors.map(color => color[0]),
-					state.referenceColors.map(color => color[0]),
-					state.polynomialDegree
-				);
-				logMessage('Red channel transformation calculated', 'info');
-				
-				updateProgress('process', 30);
-				state.transformationCoefficients.green = polynomialRegression(
-					state.capturedColors.map(color => color[1]),
-					state.referenceColors.map(color => color[1]),
-					state.polynomialDegree
-				);
-				logMessage('Green channel transformation calculated', 'info');
-				
-				updateProgress('process', 50);
-				state.transformationCoefficients.blue = polynomialRegression(
-					state.capturedColors.map(color => color[2]),
-					state.referenceColors.map(color => color[2]),
-					state.polynomialDegree
-				);
-				logMessage('Blue channel transformation calculated', 'info');
-				
-				// Store in models
-				state.transformationModels.basic = {
-					red: state.transformationCoefficients.red,
-					green: state.transformationCoefficients.green,
-					blue: state.transformationCoefficients.blue
-				};
-				
-				// If advanced processing is enabled, compute multivariate model
-				// Add this error handling to the multivariate model calculation in processColorTransformation function
-				if (state.useAdvancedProcessing) {
-					updateProgress('process', 60);
-					
-					try {
-						// Create more data points using the basic coefficients
-						const gridSize = 3;
-						const grid = [];
-						const gridValues = [0, 255]; // This matches np.linspace(0,255,2)
-						for (let r of gridValues) {
-							for (let g of gridValues) {
-								for (let b of gridValues) {
-									grid.push([r, g, b]);
-								}
-							}
-						}
-						
-						// Apply basic transformation to grid points
-						const transformedGrid = grid.map(([r, g, b]) => [
-							applyPolynomial(r, state.transformationCoefficients.red),
-							applyPolynomial(g, state.transformationCoefficients.green),
-							applyPolynomial(b, state.transformationCoefficients.blue)
-						]);
-						
-						// Combine original captured colors and grid for training data
-						const trainColors = [...state.capturedColors, ...grid];
-						const trainTargets = [...state.referenceColors, ...transformedGrid];
-						
-						updateProgress('process', 70);
-						
-						// Perform multivariate regression for each output channel
-						// Use degree 2 for multivariate to avoid overfitting
-						const multivariateDegree = 2;
-						
-						// Prepare input arrays
-						const rInputs = trainColors.map(color => color[0]);
-						const gInputs = trainColors.map(color => color[1]);
-						const bInputs = trainColors.map(color => color[2]);
-						
-						try {
-							state.transformationModels.multivariate.red = polyfit3d(
-								rInputs, gInputs, bInputs,
-								trainTargets.map(color => color[0]),
-								multivariateDegree
-							);
-							logMessage('Advanced red channel transformation calculated', 'info');
-						} catch (error) {
-							logMessage(`Error calculating red channel advanced model: ${error.message}. Falling back to basic model.`, 'warning');
-							state.transformationModels.multivariate.red = null;
-						}
-						
-						updateProgress('process', 80);
-						
-						try {
-							state.transformationModels.multivariate.green = polyfit3d(
-								rInputs, gInputs, bInputs,
-								trainTargets.map(color => color[1]),
-								multivariateDegree
-							);
-							logMessage('Advanced green channel transformation calculated', 'info');
-						} catch (error) {
-							logMessage(`Error calculating green channel advanced model: ${error.message}. Falling back to basic model.`, 'warning');
-							state.transformationModels.multivariate.green = null;
-						}
-						
-						updateProgress('process', 90);
-						
-						try {
-							state.transformationModels.multivariate.blue = polyfit3d(
-								rInputs, gInputs, bInputs,
-								trainTargets.map(color => color[2]),
-								multivariateDegree
-							);
-							logMessage('Advanced blue channel transformation calculated', 'info');
-						} catch (error) {
-							logMessage(`Error calculating blue channel advanced model: ${error.message}. Falling back to basic model.`, 'warning');
-							state.transformationModels.multivariate.blue = null;
-						}
-						
-						// Check if any of the multivariate models failed
-						if (!state.transformationModels.multivariate.red || 
-							!state.transformationModels.multivariate.green || 
-							!state.transformationModels.multivariate.blue) {
-							
-							logMessage('Some advanced models failed. Partial advanced processing will be used where available.', 'warning');
-						}
-						
-						// Generate gamma curves
-						state.gammaCurves = generateGammaCurves();
-						logMessage('Gamma curves generated', 'info');
-					} catch (error) {
-						logMessage(`Advanced processing failed: ${error.message}. Using basic transformation only.`, 'error');
-						state.transformationModels.multivariate.red = null;
-						state.transformationModels.multivariate.green = null;
-						state.transformationModels.multivariate.blue = null;
+				state.transformationModels = LUTCore.buildTransformationModels(
+					state.capturedColors,
+					state.referenceColors,
+					{
+						polynomialDegree: state.polynomialDegree,
+						multivariateDegree: 2,
+						useWeightedRegression: state.useWeightedRegression
 					}
-				}
-				
+				);
+				state.rolloffCurves = LUTCore.generateRolloffCurves();
+				updateProgress('process', 90);
+				logMessage('Basic and advanced color models calculated', 'info');
+
 				updateProgress('process', 100);
 				logMessage(`Color transformation processing complete!${state.useAdvancedProcessing ? ' (Advanced mode)' : ''}`, 'success');
-				
-				// Enable next step
+
 				document.getElementById('process-next').disabled = false;
-				
-				// If a test image is already loaded, process it with the new coefficients
+				invalidateGeneratedLUT();
+
 				if (state.testImage) {
 					processTestImage();
 				}
 			} catch (error) {
-				logMessage(`Error processing color transformation: ${error}`, 'error');
+				invalidateTransformation();
+				updateProgress('process', 0);
+				logMessage(`Error processing color transformation: ${error.message}`, 'error');
 			}
 		}
 		
-		function processPixelMultivariate(r, g, b, models, brightnessAdjustment, gammaCurves) {
-			// Apply multivariate transformation
-			const newR = applyPoly3d(r, g, b, models.multivariate.red) + brightnessAdjustment;
-			const newG = applyPoly3d(r, g, b, models.multivariate.green) + brightnessAdjustment;
-			const newB = applyPoly3d(r, g, b, models.multivariate.blue) + brightnessAdjustment;
-			
-			// Apply advanced gamma with roll-off curves
-			return applyAdvancedGamma(newR, newG, newB, gammaCurves);
-		}
-
-		// Generate LUT image with enhanced processing
-		function generateEnhancedLUT(transformationModels, brightnessAdjustment, gammaValue) {
-			if (!transformationModels) {
-				logMessage('No color transformation available. Please process colors first.', 'error');
-				return null;
-			}
-			
-			logMessage('Generating enhanced LUT...', 'info');
-			
-			// Create gamma curves for specialized roll-off
-			const gammaCurves = generateGammaCurves();
-			
-			// For PNG LUT (OBS compatible)
-			const lutCanvas = document.createElement('canvas');
-			const lutCtx = lutCanvas.getContext('2d');
-			lutCanvas.width = 64;
-			lutCanvas.height = 64;
-			
-			// Clear canvas
-			lutCtx.clearRect(0, 0, lutCanvas.width, lutCanvas.height);
-			
-			// Generate neutral LUT data
-			const lutData = lutCtx.createImageData(64, 64);
-			const data = lutData.data;
-			
-			// Fill the entire 64x64 grid with Hald CLUT format
-			for (let y = 0; y < 64; y++) {
-				for (let x = 0; x < 64; x++) {
-					// Hald CLUT level 8 format (8x8x8 = 512 colors in 64x64 grid)
-					// Each 8x8 block represents a different blue value
-					const blockX = Math.floor(x / 8);
-					const blockY = Math.floor(y / 8);
-					const blockIndex = blockY * 8 + blockX; // 0-63
-					
-					const localX = x % 8; // 0-7
-					const localY = y % 8; // 0-7
-					
-					// Map to RGB (OBS format: R=X, G=Y within blocks)
-					// For 64x64 (8x8x8 LUT), we scale differently
-					const r = Math.round(localX * 255 / 7);  // 0, 36, 73, 109, 146, 182, 219, 255
-					const g = Math.round(localY * 255 / 7);  // 0, 36, 73, 109, 146, 182, 219, 255
-					const b = Math.round(blockIndex * 255 / 63);  // 0-255 across 64 blocks
-					
-					// Calculate pixel index
-					const index = (y * 64 + x) * 4;
-					
-					// Set initial RGBA values
-					data[index] = r;
-					data[index + 1] = g;
-					data[index + 2] = b;
-					data[index + 3] = 255;  // Alpha
-				}
-			}
-			
-			// Apply transformation to LUT
-			for (let i = 0; i < data.length; i += 4) {
-				// Get original values
-				const r = data[i];
-				const g = data[i + 1];
-				const b = data[i + 2];
-				
-				// Process pixel with multivariate model
-				const [newR, newG, newB] = processPixelMultivariate(
-					r, g, b, 
-					transformationModels, 
-					brightnessAdjustment, 
-					gammaCurves
-				);
-				
-				// Clamp values
-				data[i] = Math.min(255, Math.max(0, Math.round(newR)));
-				data[i + 1] = Math.min(255, Math.max(0, Math.round(newG)));
-				data[i + 2] = Math.min(255, Math.max(0, Math.round(newB)));
-			}
-			
-			// Put the data back to the canvas
-			lutCtx.putImageData(lutData, 0, 0);
-			
-			logMessage('Enhanced LUT generation complete!', 'success');
-			return lutCanvas;
-		}
-		
-		function applyAdvancedGamma(r, g, b, curves) {
-			const { highlightCurve, shadowCurve } = curves;
-			
-			let newR = r, newG = g, newB = b;
-			
-			// Apply highlight roll-off (when RGB > 225 and < 492)
-			if (newR > 225 && newR < 492) {
-				newR = highlightCurve[Math.round(newR) - 226];
-			} else if (newR >= 492) {
-				newR = 255;
-			}
-			
-			if (newG > 225 && newG < 492) {
-				newG = highlightCurve[Math.round(newG) - 226];
-			} else if (newG >= 492) {
-				newG = 255;
-			}
-			
-			if (newB > 225 && newB < 492) {
-				newB = highlightCurve[Math.round(newB) - 226];
-			} else if (newB >= 492) {
-				newB = 255;
-			}
-			
-			// Apply shadow roll-off (when RGB <= 30 and RGB > -461)
-			if (newR <= 30 && newR > -461) {
-				newR = shadowCurve[Math.round(newR + 461)];
-			} else if (newR <= -461) {
-				newR = 0;
-			}
-			
-			if (newG <= 30 && newG > -461) {
-				newG = shadowCurve[Math.round(newG + 461)];
-			} else if (newG <= -461) {
-				newG = 0;
-			}
-			
-			if (newB <= 30 && newB > -461) {
-				newB = shadowCurve[Math.round(newB + 461)];
-			} else if (newB <= -461) {
-				newB = 0;
-			}
-			
-			return [newR, newG, newB];
-		}
-
     </script>
 </body>
 </html>

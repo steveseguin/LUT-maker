@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LUT Test - Neutral Comparison</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .canvas-container {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+        .canvas-wrapper {
+            text-align: center;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            max-width: 300px;
+            max-height: 300px;
+        }
+        .log {
+            background-color: #f9f9f9;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .error { color: red; }
+        .success { color: green; }
+        .warning { color: orange; }
+        .info { color: blue; }
+        button {
+            background-color: #007cba;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #005a87;
+        }
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .comparison-item {
+            text-align: center;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>LUT Test - Neutral Comparison</h1>
+
+        <div class="test-section">
+            <h2>Test Controls</h2>
+            <button onclick="runNeutralTest()">Generate & Compare Neutral LUT</button>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+
+        <div class="test-section">
+            <h2>LUT Comparison</h2>
+            <div class="comparison-grid">
+                <div class="comparison-item">
+                    <h3>Generated Neutral LUT</h3>
+                    <canvas id="generated-lut" width="512" height="512"></canvas>
+                    <p>Generated using current code</p>
+                </div>
+                <div class="comparison-item">
+                    <h3>Reference Neutral LUT</h3>
+                    <canvas id="reference-lut" width="512" height="512"></canvas>
+                    <p>Loaded from reference-neutral-lut.png</p>
+                </div>
+                <div class="comparison-item">
+                    <h3>Difference Map</h3>
+                    <canvas id="difference-map" width="512" height="512"></canvas>
+                    <p>Highlights pixel differences (red = different)</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Test Log</h2>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        // Utility functions copied from main code
+        function safeApplyPolynomial(value, coefficients) {
+            if (!coefficients || !Array.isArray(coefficients)) {
+                return value;
+            }
+
+            let result = 0;
+            for (let i = 0; i < coefficients.length; i++) {
+                const coef = coefficients[i] || 0;
+                const term = coef * Math.pow(value, i);
+                result += Number.isFinite(term) ? term : 0;
+            }
+
+            return Number.isFinite(result) ? result : value;
+        }
+
+        function safeGamma(value, gamma, isNormalized = false) {
+            if (!Number.isFinite(value) || value < 0) return 0;
+            if (value === 0) return 0;
+
+            let normalizedValue, result;
+
+            if (isNormalized) {
+                normalizedValue = Math.max(0, Math.min(1, value));
+                result = Math.pow(normalizedValue, 1 / (gamma || 1.0));
+            } else {
+                normalizedValue = Math.max(0, Math.min(1, value / 255.0));
+                result = Math.pow(normalizedValue, 1 / (gamma || 1.0)) * 255.0;
+            }
+
+            return Number.isFinite(result) ? result : 0;
+        }
+
+        // Logging function
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}\n`;
+
+            const span = document.createElement('span');
+            span.className = type;
+            span.textContent = logEntry;
+            logDiv.appendChild(span);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        // Generate neutral LUT using the exact same logic as main code
+        function generateNeutralLUT() {
+            log('Generating neutral LUT using current code logic...', 'info');
+
+            const canvas = document.getElementById('generated-lut');
+            const ctx = canvas.getContext('2d');
+            const lutSize = 512;
+
+            canvas.width = lutSize;
+            canvas.height = lutSize;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const lutData = ctx.createImageData(lutSize, lutSize);
+            const data = lutData.data;
+
+            // For 512x512: 64 steps per channel, arranged as 8x8 grid of 64x64 blocks
+            const steps = 64;
+            const blockSize = 64;
+            const blocksPerRow = 8;
+
+            let pixelCount = 0;
+            let samplePixels = [];
+
+            for (let y = 0; y < lutSize; y++) {
+                for (let x = 0; x < lutSize; x++) {
+                    // Calculate which block we're in (0-63)
+                    const blockX = Math.floor(x / blockSize);
+                    const blockY = Math.floor(y / blockSize);
+                    const blockIndex = blockY * blocksPerRow + blockX;
+
+                    // Position within the block (0-63)
+                    const localX = x % blockSize;
+                    const localY = y % blockSize;
+
+                    // Standard OBS Hald CLUT color mapping
+                    // Blue changes by block (8x8 grid = 64 values)
+                    const blueStep = blockIndex;
+                    // Red changes horizontally (X) within each block
+                    const redStep = localX;
+                    // Green changes vertically (Y) within each block
+                    const greenStep = localY;
+
+                    // Scale all 64 steps across the complete 0-255 range.
+                    // This matches the exact OBS neutral LUT format.
+                    const r = Math.round(redStep * 255 / 63);
+                    const g = Math.round(greenStep * 255 / 63);
+                    const b = Math.round(blueStep * 255 / 63);
+
+                    // For neutral LUT, we DON'T apply any transformations
+                    // Just use the original RGB values
+                    let finalR = r, finalG = g, finalB = b;
+
+                    // Clamp values to 0-255 (though they should already be in range)
+                    finalR = Math.min(255, Math.max(0, Math.round(finalR)));
+                    finalG = Math.min(255, Math.max(0, Math.round(finalG)));
+                    finalB = Math.min(255, Math.max(0, Math.round(finalB)));
+
+                    // Set pixel data
+                    const pixelIndex = (y * lutSize + x) * 4;
+                    data[pixelIndex] = finalR;     // Red
+                    data[pixelIndex + 1] = finalG; // Green
+                    data[pixelIndex + 2] = finalB; // Blue
+                    data[pixelIndex + 3] = 255;    // Alpha
+
+                    // Collect sample pixels for analysis
+                    if (pixelCount < 20 || (x % 64 === 0 && y % 64 === 0)) {
+                        samplePixels.push({
+                            x, y, blockX, blockY, blockIndex, localX, localY,
+                            redStep, greenStep, blueStep,
+                            r, g, b, finalR, finalG, finalB
+                        });
+                    }
+                    pixelCount++;
+                }
+            }
+
+            ctx.putImageData(lutData, 0, 0);
+
+            // Log sample pixels for debugging
+            log(`Generated ${pixelCount} pixels. Sample pixels:`, 'info');
+            samplePixels.slice(0, 10).forEach(pixel => {
+                log(`  Pixel (${pixel.x},${pixel.y}): Block(${pixel.blockX},${pixel.blockY}) Index=${pixel.blockIndex}, Local(${pixel.localX},${pixel.localY}), Steps(R:${pixel.redStep}, G:${pixel.greenStep}, B:${pixel.blueStep}), RGB(${pixel.r},${pixel.g},${pixel.b}) -> Final(${pixel.finalR},${pixel.finalG},${pixel.finalB})`, 'info');
+            });
+
+            return { canvas, ctx, lutData, samplePixels };
+        }
+
+        // Load reference LUT
+        function loadReferenceLUT() {
+            return new Promise((resolve, reject) => {
+                log('Loading reference neutral LUT...', 'info');
+
+                const img = new Image();
+                const canvas = document.getElementById('reference-lut');
+                const ctx = canvas.getContext('2d');
+
+                img.onload = function() {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    log(`Reference LUT loaded: ${img.width}x${img.height}`, 'success');
+
+                    resolve({ canvas, ctx, imageData });
+                };
+
+                img.onerror = function() {
+                    log('Failed to load reference-neutral-lut.png', 'error');
+                    reject(new Error('Failed to load reference LUT'));
+                };
+
+                img.src = 'reference-neutral-lut.png';
+            });
+        }
+
+        // Compare two LUTs pixel by pixel
+        function compareLUTs(generated, reference) {
+            log('Starting pixel-by-pixel comparison...', 'info');
+
+            if (generated.canvas.width !== reference.canvas.width ||
+                generated.canvas.height !== reference.canvas.height) {
+                log(`Size mismatch: Generated ${generated.canvas.width}x${generated.canvas.height} vs Reference ${reference.canvas.width}x${reference.canvas.height}`, 'error');
+                return;
+            }
+
+            const width = generated.canvas.width;
+            const height = generated.canvas.height;
+            const genData = generated.lutData.data;
+            const refData = reference.imageData.data;
+
+            // Create difference map
+            const diffCanvas = document.getElementById('difference-map');
+            const diffCtx = diffCanvas.getContext('2d');
+            diffCanvas.width = width;
+            diffCanvas.height = height;
+            const diffData = diffCtx.createImageData(width, height);
+            const diffPixels = diffData.data;
+
+            let totalPixels = 0;
+            let differentPixels = 0;
+            let maxDifference = 0;
+            let differences = [];
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const pixelIndex = (y * width + x) * 4;
+
+                    const genR = genData[pixelIndex];
+                    const genG = genData[pixelIndex + 1];
+                    const genB = genData[pixelIndex + 2];
+
+                    const refR = refData[pixelIndex];
+                    const refG = refData[pixelIndex + 1];
+                    const refB = refData[pixelIndex + 2];
+
+                    const diffR = Math.abs(genR - refR);
+                    const diffG = Math.abs(genG - refG);
+                    const diffB = Math.abs(genB - refB);
+                    const totalDiff = diffR + diffG + diffB;
+
+                    totalPixels++;
+
+                    if (totalDiff > 0) {
+                        differentPixels++;
+                        maxDifference = Math.max(maxDifference, totalDiff);
+
+                        if (differences.length < 50) { // Store first 50 differences
+                            differences.push({
+                                x, y,
+                                generated: {r: genR, g: genG, b: genB},
+                                reference: {r: refR, g: refG, b: refB},
+                                difference: {r: diffR, g: diffG, b: diffB, total: totalDiff}
+                            });
+                        }
+
+                        // Mark different pixels in red on difference map
+                        diffPixels[pixelIndex] = 255;     // Red
+                        diffPixels[pixelIndex + 1] = 0;   // Green
+                        diffPixels[pixelIndex + 2] = 0;   // Blue
+                        diffPixels[pixelIndex + 3] = 255; // Alpha
+                    } else {
+                        // Mark identical pixels in gray
+                        diffPixels[pixelIndex] = 128;     // Red
+                        diffPixels[pixelIndex + 1] = 128; // Green
+                        diffPixels[pixelIndex + 2] = 128; // Blue
+                        diffPixels[pixelIndex + 3] = 255; // Alpha
+                    }
+                }
+            }
+
+            diffCtx.putImageData(diffData, 0, 0);
+
+            // Log results
+            log(`Comparison Results:`, 'info');
+            log(`  Total pixels: ${totalPixels}`, 'info');
+            log(`  Different pixels: ${differentPixels} (${(differentPixels/totalPixels*100).toFixed(2)}%)`, differentPixels > 0 ? 'warning' : 'success');
+            log(`  Max difference: ${maxDifference}`, 'info');
+
+            if (differentPixels === 0) {
+                log('✓ LUTs are identical!', 'success');
+            } else {
+                log('✗ LUTs differ. First 10 differences:', 'error');
+                differences.slice(0, 10).forEach(diff => {
+                    log(`    Pixel (${diff.x},${diff.y}): Gen(${diff.generated.r},${diff.generated.g},${diff.generated.b}) vs Ref(${diff.reference.r},${diff.reference.g},${diff.reference.b}) = Diff(${diff.difference.r},${diff.difference.g},${diff.difference.b})`, 'error');
+                });
+
+                // Analyze patterns in differences
+                analyzeErrorPatterns(differences, width, height);
+            }
+
+            return { totalPixels, differentPixels, maxDifference, differences };
+        }
+
+        // Analyze error patterns to understand what's causing mismatches
+        function analyzeErrorPatterns(differences, width, height) {
+            log('Analyzing error patterns...', 'info');
+
+            // Group by position patterns
+            const blockSize = 64;
+            const blocksPerRow = 8;
+
+            const blockErrors = {};
+            const positionErrors = {};
+
+            differences.forEach(diff => {
+                const blockX = Math.floor(diff.x / blockSize);
+                const blockY = Math.floor(diff.y / blockSize);
+                const blockIndex = blockY * blocksPerRow + blockX;
+                const localX = diff.x % blockSize;
+                const localY = diff.y % blockSize;
+
+                if (!blockErrors[blockIndex]) {
+                    blockErrors[blockIndex] = [];
+                }
+                blockErrors[blockIndex].push(diff);
+
+                const posKey = `${localX},${localY}`;
+                if (!positionErrors[posKey]) {
+                    positionErrors[posKey] = [];
+                }
+                positionErrors[posKey].push(diff);
+            });
+
+            // Analyze block patterns
+            const blockErrorCounts = Object.keys(blockErrors).map(blockIndex => ({
+                block: parseInt(blockIndex),
+                count: blockErrors[blockIndex].length
+            })).sort((a, b) => b.count - a.count);
+
+            if (blockErrorCounts.length > 0) {
+                log('Blocks with most errors:', 'info');
+                blockErrorCounts.slice(0, 5).forEach(item => {
+                    log(`  Block ${item.block}: ${item.count} errors`, 'info');
+                });
+            }
+
+            // Analyze position patterns
+            const posErrorCounts = Object.keys(positionErrors).map(pos => ({
+                position: pos,
+                count: positionErrors[pos].length
+            })).sort((a, b) => b.count - a.count);
+
+            if (posErrorCounts.length > 0) {
+                log('Local positions with most errors:', 'info');
+                posErrorCounts.slice(0, 5).forEach(item => {
+                    log(`  Position ${item.position}: ${item.count} errors`, 'info');
+                });
+            }
+        }
+
+        // Main test function
+        async function runNeutralTest() {
+            try {
+                clearLog();
+                log('Starting neutral LUT comparison test...', 'info');
+
+                // Generate neutral LUT
+                const generated = generateNeutralLUT();
+
+                // Load reference LUT
+                const reference = await loadReferenceLUT();
+
+                // Compare them
+                const comparison = compareLUTs(generated, reference);
+
+                log('Test completed!', 'success');
+
+            } catch (error) {
+                log(`Test failed: ${error.message}`, 'error');
+                console.error('Test error:', error);
+            }
+        }
+
+        // Auto-run test when page loads
+        window.addEventListener('load', () => {
+            log('Page loaded. Click "Generate & Compare Neutral LUT" to start test.', 'info');
+        });
+    </script>
+</body>
+</html>

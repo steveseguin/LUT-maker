@@ -23,11 +23,11 @@ This repository offers two methods to create custom LUTs:
 
 The original Python tool can be run on Google Colab, so no Python setup or local operation is needed - everything runs in the cloud.
 
-**Access the Colab notebook here**: [http://colab.research.google.com/github/steveseguin/color-grading/blob/master/colab.ipynb](http://colab.research.google.com/github/steveseguin/color-grading/blob/master/colab.ipynb)
+**Access the Colab notebook here**: [https://colab.research.google.com/github/steveseguin/LUT-maker/blob/master/colab.ipynb](https://colab.research.google.com/github/steveseguin/LUT-maker/blob/master/colab.ipynb)
 
 A video walk-through of this tool can be found here: [https://www.youtube.com/watch?v=pu9IpbfckDo](https://www.youtube.com/watch?v=pu9IpbfckDo)
 
-![OBS Layout with LUT applied](https://github.com/steveseguin/color-grading/raw/master/obs-layout.jpg)
+![OBS Layout with LUT applied](https://github.com/steveseguin/LUT-maker/raw/master/obs-layout.jpg)
 
 ## LUT Types Supported
 
@@ -35,7 +35,7 @@ A video walk-through of this tool can be found here: [https://www.youtube.com/wa
 
 OBS Studio comes with several LUTs, including the neutral one we've used in this repo, as displayed below.
 
-![Neutral LUT](https://raw.githubusercontent.com/steveseguin/color-grading/master/neutral-lut.png)
+![Neutral LUT](https://raw.githubusercontent.com/steveseguin/LUT-maker/master/neutral-lut.png)
 
 ### 3D CUBE LUT Support
 
@@ -51,9 +51,17 @@ The code should make it pretty easy for a novice developer to convert between LU
 
 I created a version that's set up for the Datacolor Spyder Checkr color card:
 
-[https://github.com/steveseguin/color-grading/blob/master/spyder_24_color_card.ipynb](https://github.com/steveseguin/color-grading/blob/master/spyder_24_color_card.ipynb)
+[https://github.com/steveseguin/LUT-maker/blob/master/spyder_24_color_card.ipynb](https://github.com/steveseguin/LUT-maker/blob/master/spyder_24_color_card.ipynb)
 
-<img src="https://raw.githubusercontent.com/steveseguin/color-grading/master/datacolor_sample1.png" height="300" />
+<img src="https://raw.githubusercontent.com/steveseguin/LUT-maker/master/datacolor_sample1.png" height="300" />
+
+## Testing
+
+The browser's color fitting, rolloff curves, PNG layout, and CUBE precision have automated parity tests against the notebook behavior. Run them with:
+
+```bash
+npm test
+```
 
 **Note:** I'm using the main 24-color card found in the SCK100 48-color dual card pack. There's another 24-color card version that has the colors in a different arrangement; you'll need to move the values around to match your card if that's the case. (I bought mine as a 'replacement card' pack, which doesn't come with the case, but it's half the price. I don't use it often enough to justify needing a case and the added cost.)
 

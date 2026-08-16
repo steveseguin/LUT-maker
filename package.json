@@ -1,0 +1,7 @@
+{
+  "name": "lut-maker",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.js && python -B -m unittest check_lut_positions.py test_lut_edges.py"
+  }
+}
