@@ -6,6 +6,7 @@
             referenceColors: [],
             capturedColors: [],
             selectedCellIndex: null,
+            imageLoadRevision: { colorcard: 0, test: 0 },
             colorCardImage: null,
             testImage: null,
             processedTestImage: null,
@@ -856,7 +857,8 @@
         }
 
         // Load an image file
-		function loadImage(file, type) {
+		function loadImage(file, type, revision = ++state.imageLoadRevision[type]) {
+			if (revision !== state.imageLoadRevision[type]) return;
 			if (!file || !file.type.startsWith('image/')) {
 				logMessage('Please choose a supported image file', 'error');
 				return;
@@ -870,6 +872,7 @@
 			const img = new Image();
 			img.onload = function() {
 				URL.revokeObjectURL(imageUrl);
+				if (revision !== state.imageLoadRevision[type]) return;
 				if (!img.width || !img.height || img.width * img.height > 50_000_000) {
 					logMessage('The selected image dimensions are invalid or exceed the 50-megapixel limit', 'error');
 					return;
@@ -885,6 +888,7 @@
 			};
 			img.onerror = function() {
 				URL.revokeObjectURL(imageUrl);
+				if (revision !== state.imageLoadRevision[type]) return;
 				logMessage('The selected image could not be decoded', 'error');
 			};
 			img.src = imageUrl;
@@ -1626,6 +1630,8 @@
 
         // Load a demo image
 		function loadDemoImage(type) {
+			// Count the selection before fetching, not when its download finishes.
+			const revision = ++state.imageLoadRevision[type];
 			const demoUrl = type === 'colorcard'
 				? 'logcrop.jpg'
 				: 'log.jpg';
@@ -1641,9 +1647,10 @@
 				})
 				.then(blob => {
 					const file = new File([blob], `demo-${type}.jpg`, { type: 'image/jpeg' });
-					loadImage(file, type); // Pass the correct type parameter
+					loadImage(file, type, revision);
 				})
 				.catch(error => {
+					if (revision !== state.imageLoadRevision[type]) return;
 					logMessage(`Error loading demo image: ${error.message}`, 'error');
 				});
 		}
